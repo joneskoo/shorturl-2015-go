@@ -1,97 +1,55 @@
 package shorturl
 
 import (
-	"database/sql"
+	"bytes"
 	"errors"
+	"fmt"
 	"strconv"
-
-	_ "github.com/lib/pq" // postgresql driver
+	"time"
 )
 
 // Service configuration
 const (
-	Domain = "yx.fi"
+	domain = "yx.fi"
 	idBase = 36
 )
-
-// Database connection
-const connString = "dbname=shorturl sslmode=disable"
 
 // Errors
 var (
 	ErrNotFound = errors.New("Shorturl not found")
 )
 
-// SQL
-const (
-	sqlByID   = "SELECT url, host, ts FROM shorturl WHERE id = $1"
-	sqlByURL  = "SELECT url, host, ts FROM shorturl WHERE url = $1"
-	sqlInsert = "INSERT INTO shorturl(url, host) VALUES ($1, $2) RETURNING id, ts"
-)
-
-func ConnectToDatabase() (db *sql.DB, err error) {
-	db, err = sql.Open("postgres", connString)
-	return
+// Shorturl database structure
+type Shorturl struct {
+	ID    int64
+	URL   string
+	Host  string
+	Added time.Time
 }
 
-// GetByUID retrieves short url from database by base-36 id
-func GetByUID(db *sql.DB, uid string) (s Shorturl, err error) {
-	s = Shorturl{}
-	s.ID, err = strconv.ParseInt(uid, idBase, 64)
-	if err != nil {
-		return
-	}
-	err = db.QueryRow(sqlByID, s.ID).Scan(&s.URL, &s.Host, &s.Added)
-	return
+// UID is the base-36 string representation of ID
+func (s *Shorturl) UID() string {
+	return strconv.FormatInt(s.ID, idBase)
 }
 
-// GetByURL retrieves short url from database by base-36 id
-func GetByURL(db *sql.DB, url string) (s Shorturl, err error) {
-	s = Shorturl{URL: url}
-	err = db.QueryRow(sqlByURL, s.URL).Scan(&s.URL, &s.Host, &s.Added)
-	if err == sql.ErrNoRows {
-		err = ErrNotFound
-	}
-	return
+// URLString is the shortened URL as string
+func (s *Shorturl) URLString() string {
+	return "http://" + domain + "/" + s.UID()
 }
 
-// List retrieves short URLs from database
-func List(db *sql.DB) (shorturls chan Shorturl, err error) {
-	shorturls = make(chan Shorturl)
-	// Query shorturl from database
-	rows, err := db.Query("SELECT id, url, host, ts FROM shorturl")
-	if err != nil {
-		return
-	}
-	go func() {
-		defer close(shorturls)
-		defer rows.Close()
-		for rows.Next() {
-			s := Shorturl{}
-			err := rows.Scan(&s.ID, &s.URL, &s.Host, &s.Added)
-			if err != nil {
-				return
-			}
-			shorturls <- s
-		}
-	}()
-	return
+// Represent Short URL in pretty format
+func (s Shorturl) String() string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%s\n", s.URLString())
+	fmt.Fprintf(&buf, "  Target: %s\n", truncate(s.URL, 64))
+	fmt.Fprintf(&buf, "   Added: %s\n", s.Added.Format("2006-01-02 15:04:05 MST"))
+	fmt.Fprintf(&buf, "      IP: %s", s.Host)
+	return buf.String()
 }
 
-// Add Short URL to database and return Shorturl object
-func Add(db *sql.DB, url string, host string) (s Shorturl, err error) {
-	s, err = GetByURL(db, url)
-	switch err {
-	case ErrNotFound:
-		// Normal case: did not exist, so add it
-		s = Shorturl{URL: url, Host: host}
-		err = db.QueryRow(sqlInsert, url, host).Scan(&s.ID, &s.Added)
-		return s, err
-	case nil:
-		// No error, exists, re-use old one
-		return s, nil
-	default:
-		// Other error, return error
-		return Shorturl{}, err
+func truncate(str string, n int) string {
+	if len(str) > n {
+		return str[:n-1] + "…"
 	}
+	return str
 }
