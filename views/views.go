@@ -9,6 +9,7 @@ import (
 	"path"
 	"shorturl/shorturl"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"html/template"
@@ -33,7 +34,8 @@ func NewView(contentRoot string, db *sql.DB) *View {
 	templates := template.New("main")
 	templateGlob := path.Join(contentRoot, "templates", "*.html")
 	funcMap := template.FuncMap{
-		"truncate": truncate,
+		"truncate":   truncate,
+		"formattime": formatTime,
 	}
 	templates = template.Must(templates.Funcs(funcMap).ParseGlob(templateGlob))
 
@@ -124,4 +126,8 @@ func truncate(s string, limit int) string {
 		n += size
 	}
 	return s[:n] + "…"
+}
+
+func formatTime(t *time.Time, format string) string {
+	return t.Format(format)
 }
