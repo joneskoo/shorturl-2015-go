@@ -13,7 +13,7 @@ const connString = "dbname=shorturl sslmode=disable"
 // SQL
 const (
 	sqlByID   = "SELECT url, host, ts FROM shorturl WHERE id = $1"
-	sqlByURL  = "SELECT url, host, ts FROM shorturl WHERE url = $1"
+	sqlByURL  = "SELECT id, host, ts FROM shorturl WHERE url = $1"
 	sqlInsert = "INSERT INTO shorturl(url, host) VALUES ($1, $2) RETURNING id, ts"
 )
 
@@ -36,7 +36,7 @@ func GetByUID(db *sql.DB, uid string) (s Shorturl, err error) {
 // GetByURL retrieves short url from database by base-36 id
 func GetByURL(db *sql.DB, url string) (s Shorturl, err error) {
 	s = Shorturl{URL: url}
-	err = db.QueryRow(sqlByURL, s.URL).Scan(&s.URL, &s.Host, &s.Added)
+	err = db.QueryRow(sqlByURL, s.URL).Scan(&s.ID, &s.Host, &s.Added)
 	if err == sql.ErrNoRows {
 		err = ErrNotFound
 	}
