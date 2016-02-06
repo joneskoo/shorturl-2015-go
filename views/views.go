@@ -72,6 +72,18 @@ func (view View) Preview(w http.ResponseWriter, req *http.Request) {
 	view.renderTemplate(w, "preview", &s)
 }
 
+// Add adds a new shorturl
+func (view View) Add(w http.ResponseWriter, req *http.Request) {
+	url := req.FormValue("url")
+	host := getIP(req)
+	s, err := shorturl.Add(view.DB, url, host)
+	if err != nil {
+		http.Error(w, "Failed to add", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, req, s.PreviewURL(), http.StatusFound)
+}
+
 // List lists short URLs
 func (view View) List(w http.ResponseWriter, r *http.Request) {
 	shorturls, err := shorturl.List(view.DB)
@@ -92,6 +104,10 @@ func (view View) List(w http.ResponseWriter, r *http.Request) {
 		w.Write(jsonBytes)
 		fmt.Fprintf(w, "\n")
 	}
+}
+
+func getIP(req *http.Request) string {
+	return req.RemoteAddr
 }
 
 // truncate limits the string to 25 unicode characters

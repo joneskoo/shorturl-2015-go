@@ -39,6 +39,11 @@ func (s *Shorturl) URLString() string {
 	return "http://" + domain + "/" + s.UID()
 }
 
+// PreviewURL is the view that shows where URL directs
+func (s *Shorturl) PreviewURL() string {
+	return "/p/" + s.UID()
+}
+
 // Represent Short URL in pretty format
 func (s Shorturl) String() string {
 	var buf bytes.Buffer

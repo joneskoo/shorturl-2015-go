@@ -33,6 +33,7 @@ func main() {
 		view.Index(w, req)
 	})
 	http.Handle("/p/", http.StripPrefix("/p", http.HandlerFunc(view.Preview)))
+	http.Handle("/add/", http.HandlerFunc(view.Add))
 	http.Handle("/static/", http.FileServer(http.Dir(contentRoot)))
 	http.ListenAndServe(addr, nil)
 }
