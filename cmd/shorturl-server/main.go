@@ -22,17 +22,17 @@ func main() {
 
 	addr := "[::1]:8000"
 	log.Print("Listening on", addr)
-	base := views.NewView(contentRoot, db)
+	view := views.NewView(contentRoot, db)
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		// Redirect yx.fi/xxx to target
 		if req.URL.Path != "/" {
-			views.RedirectView{base}.ServeHTTP(w, req)
+			view.Redirect(w, req)
 			return
 		}
 		// For root URI /, serve index page
-		views.IndexView{base}.ServeHTTP(w, req)
+		view.Index(w, req)
 	})
-	http.Handle("/p/", http.StripPrefix("/p", views.PreviewView{base}))
+	http.Handle("/p/", http.StripPrefix("/p", http.HandlerFunc(view.Preview)))
 	http.Handle("/static/", http.FileServer(http.Dir(contentRoot)))
 	http.ListenAndServe(addr, nil)
 }

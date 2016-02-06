@@ -45,31 +45,13 @@ func NewView(contentRoot string, db *sql.DB) *View {
 	return &v
 }
 
-// IndexView serves the main page
-type IndexView struct {
-	*View
-}
-
-// ListView lists short URLs
-type ListView struct {
-	*View
-}
-
-// RedirectView redirects to short URL target
-type RedirectView struct {
-	*View
-}
-
-// PreviewView shows short url details after adding
-type PreviewView struct {
-	*View
-}
-
-func (view IndexView) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+// Index serves the main page
+func (view View) Index(w http.ResponseWriter, req *http.Request) {
 	view.renderTemplate(w, "index", nil)
 }
 
-func (view RedirectView) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+// Redirect redirects to short URL target
+func (view View) Redirect(w http.ResponseWriter, req *http.Request) {
 	uid := req.URL.Path[1:]
 	s, err := shorturl.GetByUID(view.DB, uid)
 	if err != nil {
@@ -79,7 +61,8 @@ func (view RedirectView) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	http.Redirect(w, req, s.URL, http.StatusMovedPermanently)
 }
 
-func (view PreviewView) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+// Preview shows short url details after adding
+func (view View) Preview(w http.ResponseWriter, req *http.Request) {
 	uid := req.URL.Path[1:]
 	s, err := shorturl.GetByUID(view.DB, uid)
 	if err != nil {
@@ -89,7 +72,8 @@ func (view PreviewView) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	view.renderTemplate(w, "preview", &s)
 }
 
-func (view ListView) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// List lists short URLs
+func (view View) List(w http.ResponseWriter, r *http.Request) {
 	shorturls, err := shorturl.List(view.DB)
 	if err != nil {
 		io.WriteString(w, "Not found\n")
