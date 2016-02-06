@@ -1,58 +1,36 @@
 package main
 
 import (
-	"database/sql"
-	"encoding/json"
-	"fmt"
-	"io"
 	"log"
 	"net/http"
+	"os"
 	"shorturl/shorturl"
+	"shorturl/views"
 )
-
-var db *sql.DB
-
-func hello(w http.ResponseWriter, r *http.Request) {
-	uid := r.URL.Path[1:]
-	s, err := shorturl.GetByUID(db, uid)
-	if err != nil {
-		io.WriteString(w, "Not found\n")
-		return
-	}
-	io.WriteString(w, s.String())
-	io.WriteString(w, "\n")
-}
-
-func list(w http.ResponseWriter, r *http.Request) {
-	shorturls, err := shorturl.List(db)
-	if err != nil {
-		io.WriteString(w, "Not found\n")
-		io.WriteString(w, err.Error())
-		return
-	}
-	for {
-		s := <-shorturls
-		if s.ID == 0 {
-			return
-		}
-		jsonBytes, err := json.Marshal(s)
-		if err != nil {
-			panic(err)
-		}
-		w.Write(jsonBytes)
-		fmt.Fprintf(w, "\n")
-	}
-}
 
 func main() {
 	var err error
-	db, err = shorturl.ConnectToDatabase()
+	db, err := shorturl.ConnectToDatabase()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	contentRoot := "."
+	if len(os.Args) >= 2 {
+		contentRoot = os.Args[1]
+	}
+
 	addr := "[::1]:8000"
 	log.Print("Listening on", addr)
-	http.HandleFunc("/", hello)
+	base := views.NewView(contentRoot, db)
+	http.HandleFunc("/",
+		func(w http.ResponseWriter, req *http.Request) {
+			if req.URL.Path != "/" {
+				views.RedirectView{base}.ServeHTTP(w, req)
+				return
+			}
+			views.IndexView{base}.ServeHTTP(w, req)
+		})
+	http.Handle("/p/", http.StripPrefix("/p", views.PreviewView{base}))
 	http.ListenAndServe(addr, nil)
 }
