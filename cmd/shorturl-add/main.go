@@ -28,6 +28,7 @@ func main() {
 	s, err := shorturl.Add(db, url, host)
 	if err != nil {
 		log.Fatal(err)
+		return
 	}
 	fmt.Println(s)
 }

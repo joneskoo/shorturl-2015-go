@@ -26,6 +26,7 @@ func main() {
 	s, err := shorturl.GetByUID(db, uid)
 	if err != nil {
 		log.Fatal(err)
+		return
 	}
 	fmt.Println(s)
 }
