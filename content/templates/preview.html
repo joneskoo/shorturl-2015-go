@@ -1,21 +1,8 @@
-
 <html xmlns="http://www.w3.org/1999/xhtml">
-
-
   <head>
     <title>yx.fi shorturl - shorturl preview for 1</title>
     <link rel="stylesheet" type="text/css" href="/static/style.css">
     <meta name="Author" content="Joonas Kortesalmi"/>
-    <script type="text/javascript">
-      var _gaq = _gaq || [];
-      _gaq.push(['_setAccount', 'UA-27608923-1']);
-      _gaq.push(['_trackPageview']);
-      (function() {
-        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-      })();
-    </script>
   </head>
   <body>
     <div class="page">
@@ -30,7 +17,8 @@
         <p>
             <a href="{{ .URLString }}">&lt;{{ .URLString }}&gt;</a> [joneskoo.kapsi.fi]
         </p>
-        <img width="120" height="120" src="http://chart.apis.google.com/chart?cht=qr&amp;chs=120x120&amp;choe=UTF-8&amp;chl={{ .URLString }}" alt="QR code for shorturl" class="qr"/>
+        <img width="120" height="120" alt="QR code for shorturl" class="qr"
+         src="http://chart.apis.google.com/chart?cht=qr&amp;chs=120x120&amp;choe=UTF-8&amp;chl={{ .URLString }}">
     </div>
     <p>
       This was first added {{ formattime .Added "2006-01-02 15:04:05 MST" }}.
@@ -38,7 +26,7 @@
 
     <p>
       It redirects to the long address
-      <span class="redirecturl">http://joneskoo.kapsi.fi/</span>
+      <span class="redirecturl">{{ .URL }}</span>
     </p>
       <!-- footer -->
       <div class="footer">
