@@ -28,12 +28,12 @@
     <div class="url" id="urlbox">
         <p>Shortened URL</p>
         <p>
-            <a href="{{ .URL }}">&lt;{{ truncate .URL 15 }}&gt;</a> [joneskoo.kapsi.fi]
+            <a href="{{ .URLString }}">&lt;{{ .URLString }}&gt;</a> [joneskoo.kapsi.fi]
         </p>
-        <img width="120" height="120" src="http://chart.apis.google.com/chart?cht=qr&amp;chs=120x120&amp;choe=UTF-8&amp;chl=http://yx.fi/1" alt="QR code for shorturl" class="qr"/>
+        <img width="120" height="120" src="http://chart.apis.google.com/chart?cht=qr&amp;chs=120x120&amp;choe=UTF-8&amp;chl={{ .URLString }}" alt="QR code for shorturl" class="qr"/>
     </div>
     <p>
-      This shorturl was first added 2011-10-15 10:58:27.
+      This was first added {{ formattime .Added "2006-01-02 15:04:05 MST" }}.
     </p>
 
     <p>

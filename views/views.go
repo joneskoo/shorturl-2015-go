@@ -86,7 +86,7 @@ func (view PreviewView) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.NotFound(w, req)
 		return
 	}
-	view.renderTemplate(w, "preview", s)
+	view.renderTemplate(w, "preview", &s)
 }
 
 func (view ListView) ServeHTTP(w http.ResponseWriter, r *http.Request) {
