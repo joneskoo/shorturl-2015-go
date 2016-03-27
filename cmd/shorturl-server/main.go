@@ -1,11 +1,12 @@
+// +build !appengine
+
 package main
 
 import (
 	"log"
 	"net/http"
 	"os"
-	"shorturl/shorturl"
-	"shorturl/views"
+	"github.com/joneskoo/shorturl-go/shorturl"
 )
 
 func main() {
@@ -22,7 +23,7 @@ func main() {
 
 	addr := "[::1]:8000"
 	log.Print("Listening on", addr)
-	view := views.NewView(contentRoot, db)
+	view := shorturl.NewView(contentRoot, db)
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		// Redirect yx.fi/xxx to target
 		if req.URL.Path != "/" {

@@ -1,4 +1,4 @@
-package views
+package shorturl
 
 import (
 	"database/sql"
@@ -7,10 +7,7 @@ import (
 	"io"
 	"net/http"
 	"path"
-	"shorturl/shorturl"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"html/template"
 )
@@ -53,7 +50,7 @@ func (view View) Index(w http.ResponseWriter, req *http.Request) {
 // Redirect redirects to short URL target
 func (view View) Redirect(w http.ResponseWriter, req *http.Request) {
 	uid := req.URL.Path[1:]
-	s, err := shorturl.GetByUID(view.DB, uid)
+	s, err := GetByUID(view.DB, uid)
 	if err != nil {
 		http.NotFound(w, req)
 		return
@@ -64,7 +61,7 @@ func (view View) Redirect(w http.ResponseWriter, req *http.Request) {
 // Preview shows short url details after adding
 func (view View) Preview(w http.ResponseWriter, req *http.Request) {
 	uid := req.URL.Path[1:]
-	s, err := shorturl.GetByUID(view.DB, uid)
+	s, err := GetByUID(view.DB, uid)
 	if err != nil {
 		http.NotFound(w, req)
 		return
@@ -76,7 +73,7 @@ func (view View) Preview(w http.ResponseWriter, req *http.Request) {
 func (view View) Add(w http.ResponseWriter, req *http.Request) {
 	url := req.FormValue("url")
 	host := getIP(req)
-	s, err := shorturl.Add(view.DB, url, host)
+	s, err := Add(view.DB, url, host)
 	if err != nil {
 		http.Error(w, "Failed to add", http.StatusInternalServerError)
 		return
@@ -86,7 +83,7 @@ func (view View) Add(w http.ResponseWriter, req *http.Request) {
 
 // List lists short URLs
 func (view View) List(w http.ResponseWriter, r *http.Request) {
-	shorturls, err := shorturl.List(view.DB)
+	shorturls, err := List(view.DB)
 	if err != nil {
 		io.WriteString(w, "Not found\n")
 		io.WriteString(w, err.Error())
@@ -108,24 +105,6 @@ func (view View) List(w http.ResponseWriter, r *http.Request) {
 
 func getIP(req *http.Request) string {
 	return req.RemoteAddr
-}
-
-// truncate limits the string to 25 unicode characters
-func truncate(s string, limit int) string {
-	if utf8.RuneCountInString(s) <= limit {
-		return s
-	}
-	n := 0
-	reader := strings.NewReader(s)
-	// calculate number of bytes for limit-1 runes
-	for i := 0; i < limit-1; i++ {
-		_, size, err := reader.ReadRune()
-		if err != nil {
-			break // unexpected end of string
-		}
-		n += size
-	}
-	return s[:n] + "…"
 }
 
 func formatTime(t *time.Time, format string) string {
