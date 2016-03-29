@@ -1,6 +1,12 @@
 runtime: go
 api_version: go1
+application: lyrical-nectar-126316
+version: dev
 
 handlers:
+- url: /static
+  static_dir: content/static
 - url: /.*
   script: _go_app
+
+

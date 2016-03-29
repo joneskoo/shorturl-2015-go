@@ -20,7 +20,7 @@ func init() {
 	http.HandleFunc("/", handler)
 	http.Handle("/p/", http.StripPrefix("/p", http.HandlerFunc(view.Preview)))
 	http.Handle("/add/", http.HandlerFunc(view.Add))
-	http.Handle("/static/", http.FileServer(http.Dir(contentRoot)))
+	//http.Handle("/static/", http.FileServer(http.Dir(contentRoot)))
 }
 
 func main() {
