@@ -11,17 +11,11 @@ var contentRoot = "content"
 var view *View
 
 func init() {
-	var err error
-	db, err := ConnectToDatabase()
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	if len(os.Args) >= 2 {
 		contentRoot = os.Args[1]
 	}
 
-	view = NewView(contentRoot, db)
+	view = NewView(contentRoot)
 
 	http.HandleFunc("/", handler)
 	http.Handle("/p/", http.StripPrefix("/p", http.HandlerFunc(view.Preview)))

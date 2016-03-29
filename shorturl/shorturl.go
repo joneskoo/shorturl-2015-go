@@ -10,7 +10,6 @@ import (
 
 // Service configuration
 const (
-	domain = "yx.fi"
 	idBase = 36
 )
 
@@ -25,6 +24,7 @@ type Shorturl struct {
 	URL   string
 	Host  string
 	Added time.Time
+    ServiceDomain string
 }
 
 // UID is the base-36 string representation of ID
@@ -34,7 +34,7 @@ func (s *Shorturl) UID() string {
 
 // URLString is the shortened URL as string
 func (s *Shorturl) URLString() string {
-	return "http://" + domain + "/" + s.UID()
+	return "http://" + s.ServiceDomain + "/" + s.UID()
 }
 
 // PreviewURL is the view that shows where URL directs
