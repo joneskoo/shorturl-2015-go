@@ -3,7 +3,6 @@ package shorturl
 import (
 	"log"
 	"net/http"
-	"os"
 )
 
 var contentRoot = "content"
@@ -11,10 +10,6 @@ var contentRoot = "content"
 var view *View
 
 func init() {
-	if len(os.Args) >= 2 {
-		contentRoot = os.Args[1]
-	}
-
 	view = NewView(contentRoot)
 
 	http.HandleFunc("/", handler)
