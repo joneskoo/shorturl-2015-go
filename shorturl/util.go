@@ -1,9 +1,8 @@
 package shorturl
 
 import (
-    "strings"
-    	"unicode/utf8"
-
+	"strings"
+	"unicode/utf8"
 )
 
 func truncate(str string, limit int) string {

@@ -1,12 +1,12 @@
 package shorturl
 
 import (
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/datastore"
 	"net/http"
 	"path"
-    "strconv"
+	"strconv"
 	"time"
-    "google.golang.org/appengine"
-    "google.golang.org/appengine/datastore"
 
 	"html/template"
 )
@@ -46,49 +46,49 @@ func (view View) Index(w http.ResponseWriter, req *http.Request) {
 func getShorturl(req *http.Request) (*Shorturl, error) {
 	uid := req.URL.Path[1:]
 
-    ctx := appengine.NewContext(req)
-    var s Shorturl
+	ctx := appengine.NewContext(req)
+	var s Shorturl
 
-    id, err := strconv.ParseInt(uid, idBase, 64)
-    if err != nil {
-            return nil, err
-    }
+	id, err := strconv.ParseInt(uid, idBase, 64)
+	if err != nil {
+		return nil, err
+	}
 
-    key := datastore.NewKey(ctx, "Shorturl", "", id, nil)
+	key := datastore.NewKey(ctx, "Shorturl", "", id, nil)
 	if err != nil {
 		return nil, ErrNotFound
 	}
-    if err = datastore.Get(ctx, key, &s); err != nil {
-        return nil, err
-    }
-    s.ID = id
-    s.ServiceDomain = appengine.DefaultVersionHostname(ctx)
-    return &s, nil
+	if err = datastore.Get(ctx, key, &s); err != nil {
+		return nil, err
+	}
+	s.ID = id
+	s.ServiceDomain = appengine.DefaultVersionHostname(ctx)
+	return &s, nil
 }
 
 // Redirect redirects to short URL target
 func (view View) Redirect(w http.ResponseWriter, req *http.Request) {
-    s, err := getShorturl(req)
-    if err == ErrNotFound {
-        http.NotFound(w, req)
-        return
-    } else if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
+	s, err := getShorturl(req)
+	if err == ErrNotFound {
+		http.NotFound(w, req)
+		return
+	} else if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	http.Redirect(w, req, s.URL, http.StatusMovedPermanently)
 }
 
 // Preview shows short url details after adding
 func (view View) Preview(w http.ResponseWriter, req *http.Request) {
-    s, err := getShorturl(req)
-    if err == ErrNotFound {
-        http.NotFound(w, req)
-        return
-    } else if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
+	s, err := getShorturl(req)
+	if err == ErrNotFound {
+		http.NotFound(w, req)
+		return
+	} else if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	view.renderTemplate(w, "preview", &s)
 }
 
@@ -98,18 +98,18 @@ func (view View) Add(w http.ResponseWriter, req *http.Request) {
 	host := getIP(req)
 
 	//s, err := Add(url, host)
-    s := Shorturl{
-    	URL: url,
-	    Host: host,
-    	Added: time.Now()}
+	s := Shorturl{
+		URL:   url,
+		Host:  host,
+		Added: time.Now()}
 
-    ctx := appengine.NewContext(req)
-    key, err := datastore.Put(ctx, datastore.NewIncompleteKey(ctx, "Shorturl", nil), &s)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    s.ID = key.IntID()
+	ctx := appengine.NewContext(req)
+	key, err := datastore.Put(ctx, datastore.NewIncompleteKey(ctx, "Shorturl", nil), &s)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	s.ID = key.IntID()
 	http.Redirect(w, req, s.PreviewURL(), http.StatusFound)
 }
 

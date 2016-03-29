@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"time")
-
+	"time"
+)
 
 // Service configuration
 const (
@@ -20,11 +20,11 @@ var (
 
 // Shorturl database structure
 type Shorturl struct {
-	ID    int64
-	URL   string
-	Host  string
-	Added time.Time
-    ServiceDomain string
+	ID            int64
+	URL           string
+	Host          string
+	Added         time.Time
+	ServiceDomain string
 }
 
 // UID is the base-36 string representation of ID
