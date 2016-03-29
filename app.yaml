@@ -2,6 +2,7 @@ runtime: go
 api_version: go1
 application: lyrical-nectar-126316
 version: dev
+secure: always
 
 handlers:
 - url: /static
