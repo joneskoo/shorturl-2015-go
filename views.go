@@ -46,8 +46,22 @@ func (view View) Index(w http.ResponseWriter, req *http.Request) {
 	view.renderTemplate(w, "index", nil)
 }
 
+func isAlwaysPreview(req *http.Request) bool {
+	cookies := req.Cookies()
+	for _, cookie := range(cookies) {
+		if cookie.Name == "preview" && cookie.Value == "true" {
+			return true
+		}
+	}
+	return false
+}
+
 // Redirect redirects to short URL target
 func (view View) Redirect(w http.ResponseWriter, req *http.Request) {
+	if isAlwaysPreview(req) {
+		view.Preview(w, req)
+		return
+	}
 	uid := req.URL.Path[1:]
 	s, err := GetByUID(view.DB, uid)
 	if err != nil {
