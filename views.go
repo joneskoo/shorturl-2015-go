@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"path"
 	"github.com/gorilla/csrf"
@@ -133,7 +134,9 @@ func (view View) Add(w http.ResponseWriter, req *http.Request) {
 	}
 	s, err := Add(view.DB, url, host)
 	if err != nil {
-		http.Error(w, "Failed to add", http.StatusInternalServerError)
+		errMsg := fmt.Sprintf("Failed to add (%s)", err)
+		log.Print(errMsg)
+		http.Error(w, errMsg, http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, req, s.PreviewURL(), http.StatusFound)

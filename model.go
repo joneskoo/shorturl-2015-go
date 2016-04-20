@@ -8,7 +8,7 @@ import (
 )
 
 // Database connection
-const connString = "dbname=shorturl sslmode=disable"
+const connString = "sslmode=disable"
 
 // SQL
 const (
