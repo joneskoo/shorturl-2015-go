@@ -13,6 +13,7 @@ import (
 	shorturl "github.com/joneskoo/shorturl-go"
 )
 
+
 func main() {
 	var err error
 	db, err := shorturl.ConnectToDatabase()
@@ -35,6 +36,8 @@ func main() {
 		ioutil.WriteFile(csrfSecretFile, randBytes, 0600)
 	}
 	csrfSecret, err := ioutil.ReadFile(csrfSecretFile)
+	CSRF := csrf.Protect([]byte(csrfSecret), csrf.Secure(false))
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -66,7 +69,6 @@ func main() {
 
 	r.HandleFunc("/always-preview/enable", setAlwaysPreview)
 	r.HandleFunc("/always-preview/disable", unsetAlwaysPreview)
-	CSRF := csrf.Protect([]byte(csrfSecret), csrf.Secure(false))
 	http.ListenAndServe(addr, CSRF(r))
 }
 
