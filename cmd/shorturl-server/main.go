@@ -50,15 +50,8 @@ func main() {
 	view := shorturl.NewView(contentRoot, db)
 	
 	r := mux.NewRouter()
-	r.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		// Redirect yx.fi/xxx to target
-		if req.URL.Path != "/" {
-			view.Redirect(w, req)
-			return
-		}
-		// For root URI /, serve index page
-		view.Index(w, req)
-	})
+	r.HandleFunc("/{key}", view.Redirect)
+	r.HandleFunc("/", view.Index)
 	r.HandleFunc("/add/", view.Add)
 	r.Handle("/p/{key}", http.StripPrefix("/p/", http.HandlerFunc(view.Preview)))
 
