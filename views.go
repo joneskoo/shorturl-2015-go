@@ -4,12 +4,16 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"errors"
 	"io"
 	"net/http"
 	"path"
+	"github.com/gorilla/csrf"
+	nurl "net/url"
 
 	"html/template"
 )
+
 
 // View is the base for all views
 type View struct {
@@ -23,6 +27,8 @@ func (view View) renderTemplate(w http.ResponseWriter, tmpl string, data interfa
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
+
+var allowedURLSchemes = []string{"http", "https", "ftp", "ftps", "feed", "gopher", "magnet", "spotify"}
 
 // NewView initializes a base view. This can be then cast to
 // other views.
@@ -43,7 +49,9 @@ func NewView(contentRoot string, db *sql.DB) *View {
 
 // Index serves the main page
 func (view View) Index(w http.ResponseWriter, req *http.Request) {
-	view.renderTemplate(w, "index", nil)
+	view.renderTemplate(w, "index", map[string]interface{}{
+        csrf.TemplateTag: csrf.TemplateField(req),
+    })
 }
 
 func isAlwaysPreview(req *http.Request) bool {
@@ -73,8 +81,7 @@ func (view View) Redirect(w http.ResponseWriter, req *http.Request) {
 
 // Preview shows short url details after adding
 func (view View) Preview(w http.ResponseWriter, req *http.Request) {
-	uid := req.URL.Path[1:]
-	s, err := GetByUID(view.DB, uid)
+	s, err := GetByUID(view.DB, req.URL.Path)
 	if err != nil {
 		http.NotFound(w, req)
 		return
@@ -82,10 +89,48 @@ func (view View) Preview(w http.ResponseWriter, req *http.Request) {
 	view.renderTemplate(w, "preview", &s)
 }
 
+func checkURLScheme(url string) error {
+	u, err := nurl.Parse(url)
+	if err != nil {
+		return err
+	}
+	for _, scheme := range allowedURLSchemes {
+		if u.Scheme == scheme {
+			return nil
+		}
+	}
+	return errors.New("URL scheme not allowed")
+}
+
+func checkAllowed(req *http.Request, url string, host string) error {
+	switch {
+		case len(url) < 20:
+			return errors.New("URL too short for shortening")
+		case len(url) > 2048:
+			return errors.New("URL too long for shortening")
+	}
+	if err := checkURLScheme(url); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Add adds a new shorturl
 func (view View) Add(w http.ResponseWriter, req *http.Request) {
 	url := req.FormValue("url")
+	if url == "" {
+		http.Redirect(w, req, "/", http.StatusFound)
+		return
+	}
 	host := getIP(req)
+	if err := checkAllowed(req, url, host); err != nil {
+		data := map[string]interface{}{
+        csrf.TemplateTag: csrf.TemplateField(req),
+		"Error": err,
+    	}
+		view.renderTemplate(w, "index", data)
+		return
+	}
 	s, err := Add(view.DB, url, host)
 	if err != nil {
 		http.Error(w, "Failed to add", http.StatusInternalServerError)

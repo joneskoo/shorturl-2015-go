@@ -11,7 +11,18 @@
       </div>
       <!-- main content -->
       <div class="content">
+      
+      {{if .Error}}
+      <div class="error">
+        <p>Creating the short URL failed:</p>
+        <ul>
+          <li>{{.Error}}</li>
+        </ul>
+      </div>
+      {{end}}
+
     <form id="shorturl" action="/add/" method="post">
+        {{ .csrfField }}
         <fieldset>
           <legend>Shorten a URL</legend>
           <label for="url">URL</label>

@@ -9,6 +9,9 @@ CREATE TABLE shorturl (
     id integer NOT NULL,
     url text,
     ts timestamp without time zone DEFAULT now() NOT NULL,
-    host text
+    host text,
+    cookie text
 );
 ```
+
+TODO: user-unique cookie generation + store to db
