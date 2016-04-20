@@ -165,5 +165,7 @@ func (view View) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func getIP(req *http.Request) string {
-	return req.RemoteAddr
+	// FIXME: make configurable
+	// return req.RemoteAddr
+	return req.Header.Get("x-forwarded-for")
 }

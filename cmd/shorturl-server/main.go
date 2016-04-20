@@ -45,8 +45,8 @@ func main() {
 		panic("CSRF secret file must be 32 bytes")
 	}
 
-	addr := "[::1]:8000"
-	log.Print("Listening on", addr)
+	addr := "0.0.0.0:39284"
+	log.Print("Listening on ", addr)
 	view := shorturl.NewView(contentRoot, db)
 	
 	r := mux.NewRouter()
