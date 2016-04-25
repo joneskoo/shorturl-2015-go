@@ -46,10 +46,11 @@ func main() {
 	}
 
 	addr := "0.0.0.0:39284"
-	log.Print("Listening on ", addr)
+	log.Print("Listening on http://", addr)
 	view := shorturl.NewView(contentRoot, db)
 	
 	r := mux.NewRouter()
+	r.HandleFunc("/favicon.ico", view.FaviconHandler)
 	r.HandleFunc("/{key}", view.Redirect)
 	r.HandleFunc("/", view.Index)
 	r.HandleFunc("/add/", view.Add)
@@ -64,6 +65,7 @@ func main() {
 	r.HandleFunc("/always-preview/disable", unsetAlwaysPreview)
 	http.ListenAndServe(addr, CSRF(r))
 }
+
 
 
 // setAlwaysPreview sets the preview cookie which forces plain

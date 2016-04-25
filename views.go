@@ -3,10 +3,13 @@ package shorturl
 import (
 	"database/sql"
 	"encoding/json"
+	"encoding/hex"
+	"crypto/rand"
 	"fmt"
 	"errors"
 	"io"
 	"log"
+	"regexp"
 	"net/http"
 	"path"
 	"github.com/gorilla/csrf"
@@ -132,7 +135,8 @@ func (view View) Add(w http.ResponseWriter, req *http.Request) {
 		view.renderTemplate(w, "index", data)
 		return
 	}
-	s, err := Add(view.DB, url, host)
+	clientid := getClientID(req.Cookies())
+	s, err := Add(view.DB, url, host, clientid)
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to add (%s)", err)
 		log.Print(errMsg)
@@ -169,3 +173,44 @@ func getIP(req *http.Request) string {
 	// return req.RemoteAddr
 	return req.Header.Get("x-forwarded-for")
 }
+
+
+func getClientID(cookies []*http.Cookie) string {
+	clientid := ""
+	for _, cookie := range cookies {
+		if cookie.Name == "clientid" {
+			matched, err := regexp.MatchString("^[a-f0-9]{32}$", cookie.Value)
+			if err == nil && matched {
+				clientid = cookie.Value
+			}
+		} 
+	}
+	return clientid
+}
+
+func generateClientID() string {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		log.Printf("Failed to generate client id: %v", err)
+		return ""
+	}
+	return hex.EncodeToString(b)
+}
+
+func (view View) FaviconHandler(w http.ResponseWriter, r *http.Request) {
+	clientid := getClientID(r.Cookies())
+
+	// Ensure clientid is set
+	if clientid == "" {
+		cookie := http.Cookie{
+			Name: "clientid",
+			Value: generateClientID(),
+			Path: "/",
+			MaxAge: 86400 * 365 * 10, // 10 years
+		}
+		http.SetCookie(w, &cookie)
+	}
+	http.NotFound(w, r)
+}
+

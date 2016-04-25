@@ -14,7 +14,7 @@ const connString = "sslmode=disable"
 const (
 	sqlByID   = "SELECT url, host, ts FROM shorturl WHERE id = $1"
 	sqlByURL  = "SELECT id, host, ts FROM shorturl WHERE url = $1"
-	sqlInsert = "INSERT INTO shorturl(url, host) VALUES ($1, $2) RETURNING id, ts"
+	sqlInsert = "INSERT INTO shorturl(url, host, cookie) VALUES ($1, $2, $3) RETURNING id, ts"
 )
 
 func ConnectToDatabase() (db *sql.DB, err error) {
@@ -67,13 +67,13 @@ func List(db *sql.DB) (shorturls chan Shorturl, err error) {
 }
 
 // Add Short URL to database and return Shorturl object
-func Add(db *sql.DB, url string, host string) (s Shorturl, err error) {
+func Add(db *sql.DB, url, host, clientid string) (s Shorturl, err error) {
 	s, err = GetByURL(db, url)
 	switch err {
 	case ErrNotFound:
 		// Normal case: did not exist, so add it
 		s = Shorturl{URL: url, Host: host}
-		err = db.QueryRow(sqlInsert, url, host).Scan(&s.ID, &s.Added)
+		err = db.QueryRow(sqlInsert, url, host, clientid).Scan(&s.ID, &s.Added)
 		return s, err
 	case nil:
 		// No error, exists, re-use old one
