@@ -3,6 +3,7 @@ package shorturl
 import (
 	"bytes"
 	"errors"
+	"net/url"
 	"fmt"
 	"strconv"
 	"time"
@@ -35,6 +36,15 @@ func (s *Shorturl) UID() string {
 // URLString is the shortened URL as string
 func (s *Shorturl) URLString() string {
 	return "https://" + domain + "/" + s.UID()
+}
+
+// URLString is the shortened URL as string
+func (s *Shorturl) TargetDomain() string {
+	url, err := url.Parse(s.URL)
+	if err != nil {
+		return ""
+	}
+	return url.Host
 }
 
 // PreviewURL is the view that shows where URL directs
