@@ -14,6 +14,6 @@ run:
 deploy:
 	rsync -av _build/ lakka:apps/shorturl-go/
 	ssh lakka supervisorctl restart shorturl
-	curl http://yx.fi/1
+	curl https://yx.fi/1
 
 all: _build/shorturl

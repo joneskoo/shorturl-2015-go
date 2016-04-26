@@ -34,7 +34,7 @@ func (s *Shorturl) UID() string {
 
 // URLString is the shortened URL as string
 func (s *Shorturl) URLString() string {
-	return "http://" + domain + "/" + s.UID()
+	return "https://" + domain + "/" + s.UID()
 }
 
 // PreviewURL is the view that shows where URL directs

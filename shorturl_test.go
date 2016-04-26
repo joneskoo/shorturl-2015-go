@@ -7,18 +7,18 @@ import (
 var testurls = []struct {
         url string
 }{
-    {"http://www.example.com/"},
-    {"http://www.example.com/abcd"},
-    {"http://www.example.com/abcde"},
+    {"https://www.example.com/"},
+    {"https://www.example.com/abcd"},
+    {"https://www.example.com/abcde"},
 }
 
 var idtests = []struct {
     in Shorturl
     want string
 }{
-    {Shorturl{ID:5}, "http://yx.fi/5"},
-    {Shorturl{ID:10}, "http://yx.fi/a"},
-    {Shorturl{ID:1270}, "http://yx.fi/za"},
+    {Shorturl{ID:5}, "https://yx.fi/5"},
+    {Shorturl{ID:10}, "https://yx.fi/a"},
+    {Shorturl{ID:1270}, "https://yx.fi/za"},
 }
 
 func TestURLStringFormat (t *testing.T) {

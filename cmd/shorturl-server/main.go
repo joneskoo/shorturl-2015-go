@@ -36,6 +36,7 @@ func main() {
 		ioutil.WriteFile(csrfSecretFile, randBytes, 0600)
 	}
 	csrfSecret, err := ioutil.ReadFile(csrfSecretFile)
+	// FIXME: use secure cookie (default)
 	CSRF := csrf.Protect([]byte(csrfSecret), csrf.Secure(false))
 
 	if err != nil {
