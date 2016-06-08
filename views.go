@@ -136,6 +136,10 @@ func (view View) Add(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	clientid := getClientID(req.Cookies())
+	if clientid == "" {
+		http.Error(w, "Failed to add shorturl", http.StatusForbidden)
+		return
+	}
 	s, err := Add(view.DB, url, host, clientid)
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to add (%s)", err)
