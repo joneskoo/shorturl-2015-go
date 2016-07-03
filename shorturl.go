@@ -3,8 +3,8 @@ package shorturl
 import (
 	"bytes"
 	"errors"
-	"net/url"
 	"fmt"
+	"net/url"
 	"strconv"
 	"time"
 )
