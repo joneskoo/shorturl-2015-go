@@ -8,7 +8,7 @@ import (
 )
 
 // Database connection
-const connString = "sslmode=disable"
+const connString = "user=joneskoo dbname=joneskoo sslmode=disable"
 
 // SQL
 const (
