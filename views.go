@@ -1,23 +1,23 @@
 package shorturl
 
 import (
-	"database/sql"
-	"encoding/json"
-	"encoding/hex"
 	"crypto/rand"
-	"fmt"
+	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
-	"regexp"
 	"net/http"
-	"path"
-	"github.com/gorilla/csrf"
 	nurl "net/url"
+	"path"
+	"regexp"
+
+	"github.com/gorilla/csrf"
 
 	"html/template"
 )
-
 
 // View is the base for all views
 type View struct {
@@ -54,13 +54,13 @@ func NewView(contentRoot string, db *sql.DB) *View {
 // Index serves the main page
 func (view View) Index(w http.ResponseWriter, req *http.Request) {
 	view.renderTemplate(w, "index", map[string]interface{}{
-        csrf.TemplateTag: csrf.TemplateField(req),
-    })
+		csrf.TemplateTag: csrf.TemplateField(req),
+	})
 }
 
 func isAlwaysPreview(req *http.Request) bool {
 	cookies := req.Cookies()
-	for _, cookie := range(cookies) {
+	for _, cookie := range cookies {
 		if cookie.Name == "preview" && cookie.Value == "true" {
 			return true
 		}
@@ -76,20 +76,39 @@ func (view View) Redirect(w http.ResponseWriter, req *http.Request) {
 	}
 	uid := req.URL.Path[1:]
 	s, err := GetByUID(view.DB, uid)
-	if err != nil {
+
+	switch err {
+	case nil:
+		break
+	case ErrNotFound:
 		http.NotFound(w, req)
 		return
+	default:
+		log.Printf("Getting shorturl failed: %s", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
 	}
+
 	http.Redirect(w, req, s.URL, http.StatusMovedPermanently)
+
 }
 
 // Preview shows short url details after adding
 func (view View) Preview(w http.ResponseWriter, req *http.Request) {
 	s, err := GetByUID(view.DB, req.URL.Path)
-	if err != nil {
+
+	switch err {
+	case nil:
+		break
+	case ErrNotFound:
 		http.NotFound(w, req)
 		return
+	default:
+		log.Printf("Getting shorturl failed: %s", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
 	}
+
 	view.renderTemplate(w, "preview", &s)
 }
 
@@ -108,10 +127,10 @@ func checkURLScheme(url string) error {
 
 func checkAllowed(req *http.Request, url string, host string) error {
 	switch {
-		case len(url) < 20:
-			return errors.New("URL too short for shortening")
-		case len(url) > 2048:
-			return errors.New("URL too long for shortening")
+	case len(url) < 20:
+		return errors.New("URL too short for shortening")
+	case len(url) > 2048:
+		return errors.New("URL too long for shortening")
 	}
 	if err := checkURLScheme(url); err != nil {
 		return err
@@ -129,9 +148,9 @@ func (view View) Add(w http.ResponseWriter, req *http.Request) {
 	host := getIP(req)
 	if err := checkAllowed(req, url, host); err != nil {
 		data := map[string]interface{}{
-        csrf.TemplateTag: csrf.TemplateField(req),
-		"Error": err,
-    	}
+			csrf.TemplateTag: csrf.TemplateField(req),
+			"Error":          err,
+		}
 		view.renderTemplate(w, "index", data)
 		return
 	}
@@ -142,9 +161,8 @@ func (view View) Add(w http.ResponseWriter, req *http.Request) {
 	}
 	s, err := Add(view.DB, url, host, clientid)
 	if err != nil {
-		errMsg := fmt.Sprintf("Failed to add (%s)", err)
-		log.Print(errMsg)
-		http.Error(w, errMsg, http.StatusInternalServerError)
+		log.Printf("Failed to add (%s)", err)
+		http.Error(w, "Failed to add short url", http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, req, s.PreviewURL(), http.StatusFound)
@@ -178,7 +196,6 @@ func getIP(req *http.Request) string {
 	return req.Header.Get("x-forwarded-for")
 }
 
-
 func getClientID(cookies []*http.Cookie) string {
 	clientid := ""
 	for _, cookie := range cookies {
@@ -187,7 +204,7 @@ func getClientID(cookies []*http.Cookie) string {
 			if err == nil && matched {
 				clientid = cookie.Value
 			}
-		} 
+		}
 	}
 	return clientid
 }
@@ -208,13 +225,12 @@ func (view View) FaviconHandler(w http.ResponseWriter, r *http.Request) {
 	// Ensure clientid is set
 	if clientid == "" {
 		cookie := http.Cookie{
-			Name: "clientid",
-			Value: generateClientID(),
-			Path: "/",
+			Name:   "clientid",
+			Value:  generateClientID(),
+			Path:   "/",
 			MaxAge: 86400 * 365 * 10, // 10 years
 		}
 		http.SetCookie(w, &cookie)
 	}
 	http.NotFound(w, r)
 }
-

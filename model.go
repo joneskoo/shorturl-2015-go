@@ -30,6 +30,9 @@ func GetByUID(db *sql.DB, uid string) (s Shorturl, err error) {
 		return
 	}
 	err = db.QueryRow(sqlByID, s.ID).Scan(&s.URL, &s.Host, &s.Added)
+	if err == sql.ErrNoRows {
+		err = ErrNotFound
+	}
 	return
 }
 
