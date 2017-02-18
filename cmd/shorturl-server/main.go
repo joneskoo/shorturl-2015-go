@@ -1,18 +1,18 @@
 package main
 
 import (
+	"crypto/rand"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path"
-	"io/ioutil"
-	"crypto/rand"
-	"github.com/gorilla/mux"
+
 	"github.com/gorilla/csrf"
+	"github.com/gorilla/mux"
 
 	shorturl "github.com/joneskoo/shorturl-go"
 )
-
 
 func main() {
 	var err error
@@ -49,11 +49,12 @@ func main() {
 	addr := "0.0.0.0:39284"
 	log.Print("Listening on http://", addr)
 	view := shorturl.NewView(contentRoot, db)
-	
+
 	r := mux.NewRouter()
 	r.HandleFunc("/favicon.ico", view.FaviconHandler)
-	r.HandleFunc("/{key}", view.Redirect)
+	r.HandleFunc("/index.html", view.Index)
 	r.HandleFunc("/", view.Index)
+	r.HandleFunc("/{key}", view.Redirect)
 	r.HandleFunc("/add/", view.Add)
 	r.Handle("/p/{key}", http.StripPrefix("/p/", http.HandlerFunc(view.Preview)))
 
@@ -67,15 +68,13 @@ func main() {
 	http.ListenAndServe(addr, CSRF(r))
 }
 
-
-
 // setAlwaysPreview sets the preview cookie which forces plain
 // shorturls to show preview page instead.
 func setAlwaysPreview(w http.ResponseWriter, r *http.Request) {
 	cookie := http.Cookie{
-		Name: "preview",
-		Value: "true",
-		Path: "/",
+		Name:   "preview",
+		Value:  "true",
+		Path:   "/",
 		MaxAge: 86400 * 365 * 10, // 10 years
 	}
 	http.SetCookie(w, &cookie)
@@ -86,9 +85,9 @@ func setAlwaysPreview(w http.ResponseWriter, r *http.Request) {
 // shorturls to show preview page instead.
 func unsetAlwaysPreview(w http.ResponseWriter, r *http.Request) {
 	cookie := http.Cookie{
-		Name: "preview",
-		Value: "",
-		Path: "/",
+		Name:   "preview",
+		Value:  "",
+		Path:   "/",
 		MaxAge: -1,
 	}
 	http.SetCookie(w, &cookie)

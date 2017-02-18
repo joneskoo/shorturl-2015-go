@@ -23,17 +23,18 @@ func ConnectToDatabase() (db *sql.DB, err error) {
 }
 
 // GetByUID retrieves short url from database by base-36 id
-func GetByUID(db *sql.DB, uid string) (s Shorturl, err error) {
-	s = Shorturl{}
+func GetByUID(db *sql.DB, uid string) (Shorturl, error) {
+	var s Shorturl
+	var err error
 	s.ID, err = strconv.ParseInt(uid, idBase, 64)
 	if err != nil {
-		return
+		return Shorturl{}, ErrNotFound
 	}
 	err = db.QueryRow(sqlByID, s.ID).Scan(&s.URL, &s.Host, &s.Added)
 	if err == sql.ErrNoRows {
-		err = ErrNotFound
+		return Shorturl{}, ErrNotFound
 	}
-	return
+	return s, err
 }
 
 // GetByURL retrieves short url from database by base-36 id
