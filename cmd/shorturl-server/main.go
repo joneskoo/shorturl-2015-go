@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
@@ -15,18 +14,12 @@ import (
 )
 
 func main() {
-	var err error
 	db, err := shorturl.ConnectToDatabase()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	contentRoot := "."
-	if len(os.Args) >= 2 {
-		contentRoot = os.Args[1]
-	}
-
-	csrfSecretFile := path.Join(contentRoot, "csrf.secret")
+	csrfSecretFile := "csrf.secret"
 	if _, err := os.Stat(csrfSecretFile); os.IsNotExist(err) {
 		randBytes := make([]byte, 32)
 		_, err := rand.Read(randBytes)
@@ -48,7 +41,7 @@ func main() {
 
 	addr := "0.0.0.0:39284"
 	log.Print("Listening on http://", addr)
-	view := shorturl.NewView(contentRoot, db)
+	view := shorturl.NewView(db)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/favicon.ico", view.FaviconHandler)
@@ -57,15 +50,12 @@ func main() {
 	r.HandleFunc("/{key}", view.Redirect)
 	r.HandleFunc("/add/", view.Add)
 	r.Handle("/p/{key}", http.StripPrefix("/p/", http.HandlerFunc(view.Preview)))
-
-	// Static files
-	staticHandler := http.FileServer(http.Dir(path.Join(contentRoot, "static")))
-	r.PathPrefix("/static/").Handler(
-		http.StripPrefix("/static/", staticHandler))
-
+	r.HandleFunc("/static/style.css", view.Static)
 	r.HandleFunc("/always-preview/enable", setAlwaysPreview)
 	r.HandleFunc("/always-preview/disable", unsetAlwaysPreview)
-	http.ListenAndServe(addr, CSRF(r))
+	if err := http.ListenAndServe(addr, CSRF(r)); err != nil {
+		log.Fatal(err)
+	}
 }
 
 // setAlwaysPreview sets the preview cookie which forces plain

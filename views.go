@@ -11,7 +11,7 @@ import (
 	"log"
 	"net/http"
 	nurl "net/url"
-	"path"
+	"path/filepath"
 	"regexp"
 
 	"github.com/gorilla/csrf"
@@ -36,15 +36,20 @@ var allowedURLSchemes = []string{"http", "https", "ftp", "ftps", "feed", "gopher
 
 // NewView initializes a base view. This can be then cast to
 // other views.
-func NewView(contentRoot string, db *sql.DB) *View {
-	templates := template.New("main")
-	templateGlob := path.Join(contentRoot, "templates", "*.html")
+func NewView(db *sql.DB) *View {
 	funcMap := template.FuncMap{
 		"truncate":   truncate,
 		"formattime": formatTime,
 	}
-	templates = template.Must(templates.Funcs(funcMap).ParseGlob(templateGlob))
 
+	templates := template.New("main").Funcs(funcMap)
+	for _, asset := range AssetNames() {
+		name := filepath.Base(asset)
+		_, err := templates.New(name).Parse(string(MustAsset(asset)))
+		if err != nil {
+			panic(err)
+		}
+	}
 	v := View{
 		DB:        db,
 		templates: templates}
@@ -66,6 +71,12 @@ func isAlwaysPreview(req *http.Request) bool {
 		}
 	}
 	return false
+}
+
+func (view View) Static(w http.ResponseWriter, req *http.Request) {
+	if req.URL.Path == "/static/style.css" {
+		w.Write(MustAsset("css/style.css"))
+	}
 }
 
 // Redirect redirects to short URL target

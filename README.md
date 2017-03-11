@@ -13,5 +13,3 @@ CREATE TABLE shorturl (
     cookie text
 );
 ```
-
-TODO: user-unique cookie generation + store to db
