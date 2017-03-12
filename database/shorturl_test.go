@@ -1,4 +1,4 @@
-package shorturl
+package database
 
 import (
     "testing"

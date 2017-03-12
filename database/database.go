@@ -1,4 +1,4 @@
-package shorturl
+package database
 
 import (
 	"database/sql"
@@ -7,8 +7,8 @@ import (
 	_ "github.com/lib/pq" // postgresql driver
 )
 
-// Database connection
-const connString = "user=joneskoo dbname=joneskoo sslmode=disable"
+// ConnString is the default database connection string
+var ConnString = "user=joneskoo dbname=joneskoo sslmode=disable"
 
 // SQL
 const (
@@ -17,28 +17,36 @@ const (
 	sqlInsert = "INSERT INTO shorturl(url, host, cookie) VALUES ($1, $2, $3) RETURNING id, ts"
 )
 
-func ConnectToDatabase() (db *sql.DB, err error) {
-	db, err = sql.Open("postgres", connString)
-	return
+type Database struct {
+	*sql.DB
+}
+
+// New creates a database configured from command line flags.
+func New() (*Database, error) {
+	db, err := sql.Open("postgres", ConnString)
+	if err != nil {
+		return nil, err
+	}
+	return &Database{db}, nil
 }
 
 // GetByUID retrieves short url from database by base-36 id
-func GetByUID(db *sql.DB, uid string) (Shorturl, error) {
-	var s Shorturl
+func (db *Database) GetByUID(uid string) (*Shorturl, error) {
 	var err error
+	s := new(Shorturl)
 	s.ID, err = strconv.ParseInt(uid, idBase, 64)
 	if err != nil {
-		return Shorturl{}, ErrNotFound
+		return nil, ErrNotFound
 	}
 	err = db.QueryRow(sqlByID, s.ID).Scan(&s.URL, &s.Host, &s.Added)
 	if err == sql.ErrNoRows {
-		return Shorturl{}, ErrNotFound
+		return nil, ErrNotFound
 	}
 	return s, err
 }
 
 // GetByURL retrieves short url from database by base-36 id
-func GetByURL(db *sql.DB, url string) (s Shorturl, err error) {
+func (db *Database) GetByURL(url string) (s Shorturl, err error) {
 	s = Shorturl{URL: url}
 	err = db.QueryRow(sqlByURL, s.URL).Scan(&s.ID, &s.Host, &s.Added)
 	if err == sql.ErrNoRows {
@@ -48,7 +56,7 @@ func GetByURL(db *sql.DB, url string) (s Shorturl, err error) {
 }
 
 // List retrieves short URLs from database
-func List(db *sql.DB) (shorturls chan Shorturl, err error) {
+func (db *Database) List() (shorturls chan Shorturl, err error) {
 	shorturls = make(chan Shorturl)
 	// Query shorturl from database
 	rows, err := db.Query("SELECT id, url, host, ts FROM shorturl")
@@ -71,8 +79,8 @@ func List(db *sql.DB) (shorturls chan Shorturl, err error) {
 }
 
 // Add Short URL to database and return Shorturl object
-func Add(db *sql.DB, url, host, clientid string) (s Shorturl, err error) {
-	s, err = GetByURL(db, url)
+func (db *Database) Add(url, host, clientid string) (s Shorturl, err error) {
+	s, err = db.GetByURL(url)
 	switch err {
 	case ErrNotFound:
 		// Normal case: did not exist, so add it

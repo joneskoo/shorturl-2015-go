@@ -1,16 +1,14 @@
-package shorturl
+package database
 
 import (
-	"bytes"
 	"errors"
-	"fmt"
 	"net/url"
 	"strconv"
 	"time"
 )
 
 // Service configuration
-const (
+var (
 	domain = "yx.fi"
 	idBase = 36
 )
@@ -50,14 +48,4 @@ func (s *Shorturl) TargetDomain() string {
 // PreviewURL is the view that shows where URL directs
 func (s *Shorturl) PreviewURL() string {
 	return "/p/" + s.UID()
-}
-
-// Represent Short URL in pretty format
-func (s Shorturl) String() string {
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%s\n", s.URLString())
-	fmt.Fprintf(&buf, "  Target: %s\n", truncate(s.URL, 64))
-	fmt.Fprintf(&buf, "   Added: %s\n", s.Added.Format("2006-01-02 15:04:05 MST"))
-	fmt.Fprintf(&buf, "      IP: %s", s.Host)
-	return buf.String()
 }

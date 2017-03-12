@@ -1,7 +1,9 @@
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html><html lang="en">
   <head>
-    <title>yx.fi shorturl</title>
-    <link rel="stylesheet" type="text/css" href="/static/style.css">
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <link rel="stylesheet" href="/static/style.css">
+      {{template "Head" $}}
   </head>
   <body>
     <div class="page">
@@ -11,8 +13,7 @@
       </div>
       <!-- main content -->
       <div class="content">
-          <h2>Page not found</h2>
-          <p>The requested page was not found.</p>
+        {{template "Body" $}}
       </div>
       <!-- footer -->
       <div class="footer">
