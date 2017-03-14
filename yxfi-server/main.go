@@ -60,7 +60,7 @@ func main() {
 	mux.Handle("/favicon.ico", handler(serveFavico))
 	mux.Handle("/", handler(serveHome))
 	mux.Handle("/add/", handler(serveAdd))
-	mux.Handle("/p/", http.StripPrefix("/p/", handler(servePreview)))
+	mux.Handle("/p/", http.StripPrefix("/p", handler(servePreview)))
 	mux.Handle("/static/style.css", handler(serveCSS))
 	mux.Handle("/always-preview/enable", handler(serveAlwaysPreview))
 	mux.Handle("/always-preview/disable", handler(serveAlwaysPreview))
@@ -166,7 +166,7 @@ func serveHome(resp http.ResponseWriter, req *http.Request) error {
 }
 
 func serveRedirect(resp http.ResponseWriter, req *http.Request) error {
-	if isAlwaysPreview(req) {
+	if isAlwaysPreview(req) && !isLocalReferer(req) {
 		return servePreview(resp, req)
 	}
 	shortCode := req.URL.Path[1:]
@@ -176,6 +176,14 @@ func serveRedirect(resp http.ResponseWriter, req *http.Request) error {
 	}
 	http.Redirect(resp, req, s.URL, http.StatusFound)
 	return nil
+}
+
+func isLocalReferer(req *http.Request) bool {
+	url, err := url.Parse(req.Referer())
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(url.Host, database.Domain)
 }
 
 func executeTemplate(resp http.ResponseWriter, name string, status int, header http.Header, data interface{}) error {
@@ -218,7 +226,7 @@ func serveCSS(resp http.ResponseWriter, req *http.Request) error {
 
 // Preview shows short url details after adding
 func servePreview(resp http.ResponseWriter, req *http.Request) error {
-	s, err := db.Get(req.URL.Path)
+	s, err := db.Get(req.URL.Path[1:])
 	if err != nil {
 		return err
 	}
