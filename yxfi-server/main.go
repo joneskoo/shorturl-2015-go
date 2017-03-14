@@ -57,13 +57,13 @@ func main() {
 	log.Print("Listening on http://", listenAddr)
 
 	mux := http.NewServeMux()
-	mux.Handle("/favicon.ico", handler(serveFavico))
 	mux.Handle("/", handler(serveHome))
-	mux.Handle("/add/", handler(serveAdd))
 	mux.Handle("/p/", http.StripPrefix("/p", handler(servePreview)))
-	mux.Handle("/static/style.css", handler(serveCSS))
+	mux.Handle("/add/", handler(serveAdd))
 	mux.Handle("/always-preview/enable", handler(serveAlwaysPreview))
 	mux.Handle("/always-preview/disable", handler(serveAlwaysPreview))
+	mux.Handle("/favicon.ico", handler(serveFavico))
+	mux.Handle("/static/style.css", handler(serveCSS))
 
 	secret, err := csrfSecret()
 	if err != nil {
@@ -121,41 +121,6 @@ func (h handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// setAlwaysPreview sets the preview cookie which forces plain
-// shorturls to show preview page instead.
-func serveAlwaysPreview(resp http.ResponseWriter, req *http.Request) error {
-	switch req.URL.Path {
-	case "/always-preview/enable":
-		setAlwaysPreview(resp, req)
-	case "/always-preview/disable":
-		unsetAlwaysPreview(resp, req)
-	}
-	http.Redirect(resp, req, "/", http.StatusFound)
-	return nil
-}
-
-func setAlwaysPreview(resp http.ResponseWriter, req *http.Request) {
-	cookie := http.Cookie{
-		Name:   "preview",
-		Value:  "true",
-		Path:   "/",
-		MaxAge: 86400 * 365 * 10, // 10 years
-	}
-	http.SetCookie(resp, &cookie)
-}
-
-// unsetAlwaysPreview sets the preview cookie which forces plain
-// shorturls to show preview page instead.
-func unsetAlwaysPreview(w http.ResponseWriter, r *http.Request) {
-	cookie := http.Cookie{
-		Name:   "preview",
-		Value:  "",
-		Path:   "/",
-		MaxAge: -1,
-	}
-	http.SetCookie(w, &cookie)
-}
-
 func serveHome(resp http.ResponseWriter, req *http.Request) error {
 	if req.URL.Path != "/" {
 		return serveRedirect(resp, req)
@@ -186,26 +151,13 @@ func isLocalReferer(req *http.Request) bool {
 	return strings.EqualFold(url.Host, database.Domain)
 }
 
-func executeTemplate(resp http.ResponseWriter, name string, status int, header http.Header, data interface{}) error {
-	template, ok := templates[name]
-	if !ok {
-		return fmt.Errorf("template %s not found", name)
-	}
-	resp.WriteHeader(status)
-	protocol := "http://"
-	if secure {
-		protocol = "https://"
-	}
-	err := template.Execute(resp, struct {
-		Protocol string
-		Domain   string
-		Data     interface{}
-	}{protocol, database.Domain, data})
+// Preview shows short url details after adding
+func servePreview(resp http.ResponseWriter, req *http.Request) error {
+	s, err := db.Get(req.URL.Path[1:])
 	if err != nil {
-		log.Printf("Executing template %s: %v", name, err)
-		http.Error(resp, err.Error(), http.StatusInternalServerError)
+		return err
 	}
-	return err
+	return executeTemplate(resp, "preview.html", http.StatusOK, nil, s)
 }
 
 func isAlwaysPreview(req *http.Request) bool {
@@ -218,45 +170,11 @@ func isAlwaysPreview(req *http.Request) bool {
 	return false
 }
 
-func serveCSS(resp http.ResponseWriter, req *http.Request) error {
-	r := bytes.NewReader(assets.MustAsset("css/style.css"))
-	http.ServeContent(resp, req, "style.css", assets.LastModified, r)
-	return nil
-}
-
-// Preview shows short url details after adding
-func servePreview(resp http.ResponseWriter, req *http.Request) error {
-	s, err := db.Get(req.URL.Path[1:])
-	if err != nil {
-		return err
-	}
-	return executeTemplate(resp, "preview.html", http.StatusOK, nil, s)
-}
-
-func checkURLScheme(urlString string) error {
-	u, err := url.Parse(urlString)
-	if err != nil {
-		return err
-	}
-	for _, scheme := range allowedURLSchemes {
-		if u.Scheme == scheme {
-			return nil
-		}
-	}
-	return fmt.Errorf("URL scheme %q not allowed", u.Scheme)
-}
-
-func checkAllowed(req *http.Request, url string, host string) error {
-	switch {
-	case len(url) < 20:
-		return fmt.Errorf("URL too short for shortening")
-	case len(url) > 2048:
-		return fmt.Errorf("URL too long for shortening")
-	}
-	return checkURLScheme(url)
-}
-
-// Add adds a new shorturl
+// Add stores a new shorturl to database or returns the existing
+// if the same URL was already in database.
+//
+// In either case, the view redirects to the preview page showing
+// the details and when the URL was first added.
 func serveAdd(resp http.ResponseWriter, req *http.Request) error {
 	url := req.FormValue("url")
 	if url == "" {
@@ -295,7 +213,29 @@ func getIP(req *http.Request) string {
 	return req.Header.Get("x-forwarded-for")
 }
 
-// List lists short URLs
+func checkAllowed(req *http.Request, url string, host string) error {
+	switch {
+	case len(url) < 20:
+		return fmt.Errorf("URL too short for shortening")
+	case len(url) > 2048:
+		return fmt.Errorf("URL too long for shortening")
+	}
+	return checkURLScheme(url)
+}
+
+func checkURLScheme(urlString string) error {
+	u, err := url.Parse(urlString)
+	if err != nil {
+		return err
+	}
+	for _, scheme := range allowedURLSchemes {
+		if u.Scheme == scheme {
+			return nil
+		}
+	}
+	return fmt.Errorf("URL scheme %q not allowed", u.Scheme)
+}
+
 func serveList(resp http.ResponseWriter, r *http.Request) error {
 	shorturls, err := db.List()
 	if err != nil {
@@ -313,6 +253,41 @@ func serveList(resp http.ResponseWriter, r *http.Request) error {
 		fmt.Fprint(resp, "\n")
 	}
 	return nil
+}
+
+// setAlwaysPreview sets the preview cookie which forces plain
+// shorturls to show preview page instead.
+func serveAlwaysPreview(resp http.ResponseWriter, req *http.Request) error {
+	switch req.URL.Path {
+	case "/always-preview/enable":
+		setAlwaysPreview(resp, req)
+	case "/always-preview/disable":
+		unsetAlwaysPreview(resp, req)
+	}
+	http.Redirect(resp, req, "/", http.StatusFound)
+	return nil
+}
+
+func setAlwaysPreview(resp http.ResponseWriter, req *http.Request) {
+	cookie := http.Cookie{
+		Name:   "preview",
+		Value:  "true",
+		Path:   "/",
+		MaxAge: 86400 * 365 * 10, // 10 years
+	}
+	http.SetCookie(resp, &cookie)
+}
+
+// unsetAlwaysPreview sets the preview cookie which forces plain
+// shorturls to show preview page instead.
+func unsetAlwaysPreview(w http.ResponseWriter, r *http.Request) {
+	cookie := http.Cookie{
+		Name:   "preview",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	}
+	http.SetCookie(w, &cookie)
 }
 
 func serveFavico(resp http.ResponseWriter, req *http.Request) error {
@@ -354,4 +329,32 @@ func generateClientID() string {
 		return ""
 	}
 	return hex.EncodeToString(b)
+}
+
+func serveCSS(resp http.ResponseWriter, req *http.Request) error {
+	r := bytes.NewReader(assets.MustAsset("css/style.css"))
+	http.ServeContent(resp, req, "style.css", assets.LastModified, r)
+	return nil
+}
+
+func executeTemplate(resp http.ResponseWriter, name string, status int, header http.Header, data interface{}) error {
+	template, ok := templates[name]
+	if !ok {
+		return fmt.Errorf("template %s not found", name)
+	}
+	resp.WriteHeader(status)
+	protocol := "http://"
+	if secure {
+		protocol = "https://"
+	}
+	err := template.Execute(resp, struct {
+		Protocol string
+		Domain   string
+		Data     interface{}
+	}{protocol, database.Domain, data})
+	if err != nil {
+		log.Printf("Executing template %s: %v", name, err)
+		http.Error(resp, err.Error(), http.StatusInternalServerError)
+	}
+	return err
 }
