@@ -17,6 +17,7 @@ var templates = map[string]interface {
 var htmlTemplateFuncs = template.FuncMap{
 	"truncate":   truncate,
 	"formattime": formatTime,
+	"upper":      strings.ToUpper,
 }
 
 func parseHTMLTemplates(sets [][]string) error {

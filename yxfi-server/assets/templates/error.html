@@ -1,6 +1,6 @@
-{{define "Head"}}<title>yx.fi shorturl: {{.ErrorTitle}}</title>{{end}}
+{{define "Head"}}<title>{{.Domain}} shorturl: {{.Data.ErrorTitle}}</title>{{end}}
 
 {{define "Body"}}
-<h2>{{.ErrorTitle}}</h2>
-<p>{{.ErrorMessage}}</p>
+<h2>{{.Data.ErrorTitle}}</h2>
+<p>{{.Data.ErrorMessage}}</p>
 {{end}}

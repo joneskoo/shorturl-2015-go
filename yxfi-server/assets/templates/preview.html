@@ -1,18 +1,19 @@
-{{define "Head"}}<title>yx.fi short URLs</title>{{end}}
+{{define "Head"}}<title>{{.Domain}} short URLs</title>{{end}}
 
 {{define "Body"}}
 <div class="url" id="urlbox">
     <p>Shortened URL</p>
     <p>
-        <a href="{{ .URLString }}">&lt;{{ .URLString }}&gt;</a> [{{ .TargetDomain }}]
+      {{with $shorturl := printf "%s%s/%s" .Protocol .Domain .Data.UID }}
+        <a href="{{$shorturl}}">&lt;{{$shorturl}}&gt;</a>{{end}} [{{ .Data.TargetDomain }}]
     </p>
 </div>
 <p>
-  This was first added {{ formattime .Added "2006-01-02 15:04:05 MST" }}.
+  This was first added {{ formattime .Data.Added "2006-01-02 15:04:05 MST" }}.
 </p>
 
 <p>
   It redirects to the long address
-  <span class="redirecturl">{{ .URL }}</span>
+  <span class="redirecturl">{{ .Data.URL }}</span>
 </p>
 {{end}}

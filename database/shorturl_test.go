@@ -1,33 +1,33 @@
 package database
 
 import (
-    "testing"
-    )
+	"testing"
+)
 
 var testurls = []struct {
-        url string
+	url string
 }{
-    {"https://www.example.com/"},
-    {"https://www.example.com/abcd"},
-    {"https://www.example.com/abcde"},
+	{"https://www.example.com/"},
+	{"https://www.example.com/abcd"},
+	{"https://www.example.com/abcde"},
 }
 
 var idtests = []struct {
-    in Shorturl
-    want string
+	in   Shorturl
+	want string
 }{
-    {Shorturl{ID:5}, "https://yx.fi/5"},
-    {Shorturl{ID:10}, "https://yx.fi/a"},
-    {Shorturl{ID:1270}, "https://yx.fi/za"},
+	{Shorturl{ID: 5}, "5"},
+	{Shorturl{ID: 10}, "a"},
+	{Shorturl{ID: 1270}, "za"},
 }
 
-func TestURLStringFormat (t *testing.T) {
-    for _, c := range idtests {
-        inString := c.in.URLString()
-        if inString != c.want {
-            t.Errorf("String representation %s != %s", inString, c.want)
-        }
-    }
+func TestURLStringFormat(t *testing.T) {
+	for _, c := range idtests {
+		inString := c.in.UID()
+		if inString != c.want {
+			t.Errorf("String representation %s != %s", inString, c.want)
+		}
+	}
 }
 
 // func TestCanAddAndGetShorturl (t *testing.T) {

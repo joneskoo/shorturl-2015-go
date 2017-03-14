@@ -30,11 +30,11 @@ func New() (*Database, error) {
 	return &Database{db}, nil
 }
 
-// GetByUID retrieves short url from database by base-36 id
-func (db *Database) GetByUID(uid string) (*Shorturl, error) {
+// Get retrieves short url from database by short id
+func (db *Database) Get(shortCode string) (*Shorturl, error) {
 	var err error
 	s := new(Shorturl)
-	s.ID, err = strconv.ParseInt(uid, idBase, 64)
+	s.ID, err = strconv.ParseInt(shortCode, idBase, 32)
 	if err != nil {
 		return nil, ErrNotFound
 	}
@@ -45,26 +45,16 @@ func (db *Database) GetByUID(uid string) (*Shorturl, error) {
 	return s, err
 }
 
-// GetByURL retrieves short url from database by base-36 id
-func (db *Database) GetByURL(url string) (s Shorturl, err error) {
-	s = Shorturl{URL: url}
-	err = db.QueryRow(sqlByURL, s.URL).Scan(&s.ID, &s.Host, &s.Added)
-	if err == sql.ErrNoRows {
-		err = ErrNotFound
-	}
-	return
-}
-
-// List retrieves short URLs from database
-func (db *Database) List() (shorturls chan Shorturl, err error) {
-	shorturls = make(chan Shorturl)
+// List retrieves a list of short URLs from database.
+func (db *Database) List() (<-chan Shorturl, error) {
 	// Query shorturl from database
 	rows, err := db.Query("SELECT id, url, host, ts FROM shorturl")
 	if err != nil {
-		return
+		return nil, err
 	}
-	go func() {
-		defer close(shorturls)
+	shorturls := make(chan Shorturl)
+	go func(ch chan<- Shorturl) {
+		defer close(ch)
 		defer rows.Close()
 		for rows.Next() {
 			s := Shorturl{}
@@ -72,15 +62,15 @@ func (db *Database) List() (shorturls chan Shorturl, err error) {
 			if err != nil {
 				return
 			}
-			shorturls <- s
+			ch <- s
 		}
-	}()
-	return
+	}(shorturls)
+	return shorturls, nil
 }
 
-// Add Short URL to database and return Shorturl object
+// Add Short URL to database.
 func (db *Database) Add(url, host, clientid string) (s Shorturl, err error) {
-	s, err = db.GetByURL(url)
+	s, err = db.getByURL(url)
 	switch err {
 	case ErrNotFound:
 		// Normal case: did not exist, so add it
@@ -94,4 +84,14 @@ func (db *Database) Add(url, host, clientid string) (s Shorturl, err error) {
 		// Other error, return error
 		return Shorturl{}, err
 	}
+}
+
+// getByURL retrieves short url from database by target URL
+func (db *Database) getByURL(url string) (s Shorturl, err error) {
+	s = Shorturl{URL: url}
+	err = db.QueryRow(sqlByURL, s.URL).Scan(&s.ID, &s.Host, &s.Added)
+	if err == sql.ErrNoRows {
+		err = ErrNotFound
+	}
+	return
 }

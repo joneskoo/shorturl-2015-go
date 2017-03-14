@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/gorilla/csrf"
-	"github.com/gorilla/mux"
 	"github.com/joneskoo/shorturl-go/database"
 	"github.com/joneskoo/shorturl-go/yxfi-server/assets"
 )
@@ -36,6 +35,7 @@ func main() {
 	flag.StringVar(&database.ConnString, "connstring", database.ConnString, "PostgreSQL connection string")
 	flag.StringVar(&csrfStateFile, "csrf-file", csrfStateFile, "file to store CSRF secret in")
 	flag.StringVar(&listenAddr, "listen", listenAddr, "listen on [host]:port")
+	flag.StringVar(&database.Domain, "domain", database.Domain, "domain name")
 	flag.Parse()
 	log.Printf("Starting server, os.Args=%s", strings.Join(os.Args, " "))
 
@@ -56,15 +56,14 @@ func main() {
 
 	log.Print("Listening on http://", listenAddr)
 
-	r := mux.NewRouter()
-	r.Handle("/favicon.ico", handler(serveFavico))
-	r.Handle("/", handler(serveHome))
-	r.Handle("/{key}", handler(serveRedirect))
-	r.Handle("/add/", handler(serveAdd))
-	r.Handle("/p/{key}", http.StripPrefix("/p/", handler(servePreview)))
-	r.Handle("/static/style.css", handler(serveCSS))
-	r.Handle("/always-preview/enable", handler(serveAlwaysPreview))
-	r.Handle("/always-preview/disable", handler(serveAlwaysPreview))
+	mux := http.NewServeMux()
+	mux.Handle("/favicon.ico", handler(serveFavico))
+	mux.Handle("/", handler(serveHome))
+	mux.Handle("/add/", handler(serveAdd))
+	mux.Handle("/p/", http.StripPrefix("/p/", handler(servePreview)))
+	mux.Handle("/static/style.css", handler(serveCSS))
+	mux.Handle("/always-preview/enable", handler(serveAlwaysPreview))
+	mux.Handle("/always-preview/disable", handler(serveAlwaysPreview))
 
 	secret, err := csrfSecret()
 	if err != nil {
@@ -72,7 +71,7 @@ func main() {
 	}
 	CSRF := csrf.Protect(secret, csrf.Secure(secure))
 
-	if err := http.ListenAndServe(listenAddr, CSRF(r)); err != nil {
+	if err := http.ListenAndServe(listenAddr, CSRF(mux)); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -100,24 +99,24 @@ func (h handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	err := h(resp, req)
 
 	var statusCode int
-	var errorTitle, errorMessage string
+	data := map[string]string{
+		"ErrorTitle":   "",
+		"ErrorMessage": "",
+	}
 	switch err {
 	case nil:
 		return
 	case database.ErrNotFound:
 		statusCode = http.StatusNotFound
-		errorTitle = "Short URL not found"
-		errorMessage = "Short URL by this id was not found."
+		data["ErrorTitle"] = "Short URL not found"
+		data["ErrorMessage"] = "Short URL by this id was not found."
 	default:
 		log.Printf("Unhandled error: %v", err)
 		statusCode = http.StatusInternalServerError
-		errorTitle = "Internal server error"
-		errorMessage = "There was an error and we failed to handle it. Sorry."
+		data["ErrorTitle"] = "Internal server error"
+		data["ErrorMessage"] = "There was an error and we failed to handle it. Sorry."
 	}
-	if err := executeTemplate(resp, "error.html", statusCode, nil, map[string]string{
-		"ErrorTitle":   errorTitle,
-		"ErrorMessage": errorMessage,
-	}); err != nil {
+	if err := executeTemplate(resp, "error.html", statusCode, nil, data); err != nil {
 		log.Printf("Error sending error response: %v", err)
 	}
 }
@@ -170,12 +169,12 @@ func serveRedirect(resp http.ResponseWriter, req *http.Request) error {
 	if isAlwaysPreview(req) {
 		return servePreview(resp, req)
 	}
-	uid := req.URL.Path[1:]
-	s, err := db.GetByUID(uid)
+	shortCode := req.URL.Path[1:]
+	s, err := db.Get(shortCode)
 	if err != nil {
 		return err
 	}
-	http.Redirect(resp, req, s.URL, http.StatusMovedPermanently)
+	http.Redirect(resp, req, s.URL, http.StatusFound)
 	return nil
 }
 
@@ -185,7 +184,15 @@ func executeTemplate(resp http.ResponseWriter, name string, status int, header h
 		return fmt.Errorf("template %s not found", name)
 	}
 	resp.WriteHeader(status)
-	err := template.Execute(resp, data)
+	protocol := "http://"
+	if secure {
+		protocol = "https://"
+	}
+	err := template.Execute(resp, struct {
+		Protocol string
+		Domain   string
+		Data     interface{}
+	}{protocol, database.Domain, data})
 	if err != nil {
 		log.Printf("Executing template %s: %v", name, err)
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
@@ -211,7 +218,7 @@ func serveCSS(resp http.ResponseWriter, req *http.Request) error {
 
 // Preview shows short url details after adding
 func servePreview(resp http.ResponseWriter, req *http.Request) error {
-	s, err := db.GetByUID(req.URL.Path)
+	s, err := db.Get(req.URL.Path)
 	if err != nil {
 		return err
 	}

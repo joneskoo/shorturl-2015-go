@@ -9,7 +9,7 @@ import (
 
 // Service configuration
 var (
-	domain = "yx.fi"
+	Domain = "yx.fi"
 	idBase = 36
 )
 
@@ -31,12 +31,7 @@ func (s *Shorturl) UID() string {
 	return strconv.FormatInt(s.ID, idBase)
 }
 
-// URLString is the shortened URL as string
-func (s *Shorturl) URLString() string {
-	return "https://" + domain + "/" + s.UID()
-}
-
-// URLString is the shortened URL as string
+// TargetDomain is the shorturl target domain name
 func (s *Shorturl) TargetDomain() string {
 	url, err := url.Parse(s.URL)
 	if err != nil {
