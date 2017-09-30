@@ -1,14 +1,27 @@
-package main
+package handlers
 
 import (
 	"html/template"
 	"io"
+	"log"
 	"strings"
 	"time"
 	"unicode/utf8"
 
-	"github.com/joneskoo/shorturl-go/yxfi-server/assets"
+	"github.com/joneskoo/shorturl-go/assets"
 )
+
+func init() {
+	err := parseHTMLTemplates([][]string{
+		{"error.html", "layout.html"},
+		{"index.html", "layout.html"},
+		{"404.html", "layout.html"},
+		{"preview.html", "layout.html"},
+	})
+	if err != nil {
+		log.Fatalf("Parsing HTML templates: %v", err)
+	}
+}
 
 var templates = map[string]interface {
 	Execute(io.Writer, interface{}) error
