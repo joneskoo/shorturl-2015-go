@@ -47,7 +47,7 @@ func main() {
 	}
 	CSRF := csrf.Protect(secret, csrf.Secure(secure))
 
-	h := handlers.New(db, secure, csrfStateFile)
+	h := handlers.New(db, secure)
 	if err := http.ListenAndServe(listenAddr, CSRF(h)); err != nil {
 		log.Fatal(err)
 	}
