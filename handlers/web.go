@@ -20,12 +20,12 @@ import (
 var allowedURLSchemes = []string{"http", "https", "ftp", "ftps", "feed", "gopher", "magnet", "spotify"}
 
 type handler struct {
-	db     *database.Database
+	db     database.Database
 	secure bool
 	*http.ServeMux
 }
 
-func New(db *database.Database, secure bool) http.Handler {
+func New(db database.Database, secure bool) http.Handler {
 	mux := http.NewServeMux()
 	h := handler{db, secure, mux}
 	mux.HandleFunc("/", h.serveHome)
