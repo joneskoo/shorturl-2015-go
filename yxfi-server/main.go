@@ -12,7 +12,6 @@ import (
 
 	"github.com/gorilla/csrf"
 	"github.com/joneskoo/shorturl-go/database"
-	"github.com/joneskoo/shorturl-go/database/postgres"
 	"github.com/joneskoo/shorturl-go/handlers"
 )
 
@@ -20,7 +19,7 @@ var allowedURLSchemes = []string{"http", "https", "ftp", "ftps", "feed", "gopher
 
 // globals
 var (
-	db            database.Database
+	db            *database.Database
 	secure        bool
 	csrfStateFile = "csrf.secret"
 	listenAddr    = "127.0.0.1:39284"
@@ -28,21 +27,19 @@ var (
 
 func main() {
 	flag.BoolVar(&secure, "secure", false, "set secure (HTTPS) flag in cookies")
-	pgConnString := flag.String("postgres", "", "PostgreSQL database connection string, see https://www.postgresql.org/docs/9.6/static/libpq-connect.html#LIBPQ-CONNSTRING")
+	flag.StringVar(&database.ConnString, "connstring", database.ConnString, "PostgreSQL connection string")
 	flag.StringVar(&csrfStateFile, "csrf-file", csrfStateFile, "file to store CSRF secret in")
 	flag.StringVar(&listenAddr, "listen", listenAddr, "listen on [host]:port")
-	domain := flag.String("domain", database.Domain, "domain name")
+	flag.StringVar(&database.Domain, "domain", database.Domain, "domain name")
 	flag.Parse()
 	log.Printf("Starting server, os.Args=%s", strings.Join(os.Args, " "))
 
-	switch {
-	case pgConnString != "":
-		if db, err := postgres.New(*pgConnString); err != nil {
-			log.Fatalf("Error connecting to PostgreSQL: %v", err)
-		}
-	default:
-		log.Fatal("Database is required. Please specify -postgres connstring.")
+	var err error
+	if db, err = database.New(); err != nil {
+		log.Fatalf("Connecting to database: %v", err)
 	}
+
+	log.Print("Listening on http://", listenAddr)
 
 	secret, err := csrfSecret()
 	if err != nil {
@@ -51,8 +48,6 @@ func main() {
 	CSRF := csrf.Protect(secret, csrf.Secure(secure))
 
 	h := handlers.New(db, secure)
-
-	log.Print("Listening on http://", listenAddr)
 	if err := http.ListenAndServe(listenAddr, CSRF(h)); err != nil {
 		log.Fatal(err)
 	}
