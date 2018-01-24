@@ -33,6 +33,12 @@ type errorResponse struct {
 	Template     string
 }
 
+var errorEOL = errorResponse{
+	StatusCode:   http.StatusGone,
+	ErrorTitle:   "Service is end-of-life",
+	ErrorMessage: "This short url service is end of life. Existing redirects continue to work for now.",
+}
+
 var errorNotFound = errorResponse{
 	StatusCode:   http.StatusNotFound,
 	ErrorTitle:   "Short URL not found",
@@ -47,7 +53,6 @@ var internalError = errorResponse{
 
 func (h handler) serverError(w http.ResponseWriter, e errorResponse) {
 	h.executeTemplate(w, "error.html", e.StatusCode, nil, e)
-	w.WriteHeader(500)
 }
 
 func (h handler) serveHome(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +61,7 @@ func (h handler) serveHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.NotFound(w, r)
+	h.serverError(w, errorEOL)
 }
 
 func (h handler) serveRedirect(w http.ResponseWriter, r *http.Request) {
@@ -118,6 +123,7 @@ func (h handler) executeTemplate(w http.ResponseWriter, name string, status int,
 	if !ok {
 		log.Printf("template %s not found", name)
 		http.Error(w, "", http.StatusInternalServerError)
+		return
 	}
 	w.WriteHeader(status)
 	protocol := "http://"
