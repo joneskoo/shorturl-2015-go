@@ -12,9 +12,8 @@ var ConnString = "user=joneskoo dbname=joneskoo sslmode=disable"
 
 // SQL
 const (
-	sqlByID   = "SELECT url, host, ts FROM shorturl WHERE id = $1"
-	sqlByURL  = "SELECT id, host, ts FROM shorturl WHERE url = $1"
-	sqlInsert = "INSERT INTO shorturl(url, host, cookie) VALUES ($1, $2, $3) RETURNING id, ts"
+	sqlByID  = "SELECT url, host, ts FROM shorturl WHERE id = $1"
+	sqlByURL = "SELECT id, host, ts FROM shorturl WHERE url = $1"
 )
 
 type Database struct {
@@ -66,24 +65,6 @@ func (db *Database) List() (<-chan Shorturl, error) {
 		}
 	}(shorturls)
 	return shorturls, nil
-}
-
-// Add Short URL to database.
-func (db *Database) Add(url, host, clientid string) (s Shorturl, err error) {
-	s, err = db.getByURL(url)
-	switch err {
-	case ErrNotFound:
-		// Normal case: did not exist, so add it
-		s = Shorturl{URL: url, Host: host}
-		err = db.QueryRow(sqlInsert, url, host, clientid).Scan(&s.ID, &s.Added)
-		return s, err
-	case nil:
-		// No error, exists, re-use old one
-		return s, nil
-	default:
-		// Other error, return error
-		return Shorturl{}, err
-	}
 }
 
 // getByURL retrieves short url from database by target URL

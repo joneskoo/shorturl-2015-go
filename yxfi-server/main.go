@@ -1,16 +1,12 @@
 package main
 
 import (
-	"crypto/rand"
 	"flag"
-	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 
-	"github.com/gorilla/csrf"
 	"github.com/joneskoo/shorturl-go/database"
 	"github.com/joneskoo/shorturl-go/handlers"
 )
@@ -41,31 +37,8 @@ func main() {
 
 	log.Print("Listening on http://", listenAddr)
 
-	secret, err := csrfSecret()
-	if err != nil {
-		log.Fatalf("Loading CSRF: %v", err)
-	}
-	CSRF := csrf.Protect(secret, csrf.Secure(secure))
-
 	h := handlers.New(db, secure)
-	if err := http.ListenAndServe(listenAddr, CSRF(h)); err != nil {
+	if err := http.ListenAndServe(listenAddr, h); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func csrfSecret() ([]byte, error) {
-	if _, err := os.Stat(csrfStateFile); os.IsNotExist(err) {
-		randBytes := make([]byte, 32)
-		if _, err := rand.Read(randBytes); err != nil {
-			return nil, err
-		}
-		if err := ioutil.WriteFile(csrfStateFile, randBytes, 0600); err != nil {
-			return nil, fmt.Errorf("failed to write csrf to file: %v", err)
-		}
-	}
-	csrfSecret, err := ioutil.ReadFile(csrfStateFile)
-	if len(csrfSecret) != 32 {
-		return nil, fmt.Errorf("CSRF secret file must be 32 bytes, got %d", len(csrfSecret))
-	}
-	return csrfSecret, err
 }
