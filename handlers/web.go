@@ -17,11 +17,18 @@ type handler struct {
 	*http.ServeMux
 }
 
+type stringHandler string
+
+func (s stringHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte(s))
+}
+
 func New(db *database.Database, secure bool) http.Handler {
 	mux := http.NewServeMux()
 	h := handler{db, secure, mux}
 	mux.HandleFunc("/", h.serveHome)
 	mux.Handle("/p/", http.StripPrefix("/p", http.HandlerFunc(h.servePreview)))
+	mux.Handle("/robots.txt", robotsHandler)
 	mux.HandleFunc("/static/style.css", h.serveCSS)
 	return &h
 }
@@ -141,3 +148,5 @@ func (h handler) executeTemplate(w http.ResponseWriter, name string, status int,
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
+
+const robotsHandler stringHandler = "User-agent: *\r\nDisallow: /\r\n"
