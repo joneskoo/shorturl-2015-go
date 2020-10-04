@@ -78,7 +78,7 @@ func isLocalReferer(req *http.Request) bool {
 	if err != nil {
 		return false
 	}
-	return strings.EqualFold(url.Host, req.Host)
+	return strings.EqualFold(url.Host, host(req))
 }
 
 type response struct {
@@ -105,7 +105,7 @@ func (r response) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	err := template.Execute(rw, map[string]interface{}{
 		"Protocol": protocol,
-		"Domain":   req.Host,
+		"Domain":   host(req),
 		"Data":     r.Context,
 	})
 	if err != nil {
@@ -117,6 +117,14 @@ func (r response) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 // isSecure checks if request was done over HTTPS.
 func isSecure(req *http.Request) bool {
 	return req.Header.Get("X-Forwarded-Proto") == "https"
+}
+
+func host(req *http.Request) string {
+	x := req.Header.Get("X-Forwarded-Host")
+	if x != "" {
+		return x
+	}
+	return req.Host
 }
 
 var errorEOL = response{
