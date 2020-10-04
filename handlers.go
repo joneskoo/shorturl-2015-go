@@ -10,19 +10,19 @@ import (
 	"github.com/joneskoo/shorturl-go/assets"
 )
 
-type handler struct {
-	db     *Database
-	secure bool
-	*http.ServeMux
-}
-
-func NewHandlers(db *Database, secure bool) http.Handler {
+func Handler(db *DB, secure bool) http.Handler {
 	mux := http.NewServeMux()
 	h := handler{db, secure, mux}
 	mux.HandleFunc("/", h.serveHome)
 	mux.Handle("/p/", http.StripPrefix("/p", http.HandlerFunc(h.servePreview)))
 	mux.HandleFunc("/static/style.css", h.serveCSS)
-	return &h
+	return mux
+}
+
+type handler struct {
+	db     *DB
+	secure bool
+	*http.ServeMux
 }
 
 type errorResponse struct {
