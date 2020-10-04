@@ -9,21 +9,23 @@ import (
 	"strings"
 
 	"github.com/joneskoo/shorturl-go/assets"
+	"golang.org/x/net/context"
 )
 
 func Handler(db *DB, secure bool) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/", serveHome(db, secure))
-	mux.Handle("/p/", http.StripPrefix("/p", servePreview(db, secure)))
+	mux.Handle("/", serveHome(db))
+	mux.Handle("/p/", http.StripPrefix("/p", servePreview(db)))
 	mux.Handle("/static/style.css", serveStatic("css/style.css"))
-	return mux
+	// apply middlewares
+	var h http.Handler = mux
+	h = setContextSecure(h, secure)
+	return h
 }
 
 type response struct {
 	// Template is the file name of the template to render.
 	Template string
-	// Secure controls whether URLs are secure https or not.
-	Secure bool
 	// StatusCode is the response status code.
 	StatusCode int
 	// Context is the template context used to render the HTML template.
@@ -39,7 +41,8 @@ func (r response) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 	rw.WriteHeader(r.StatusCode)
 	protocol := "http://"
-	if r.Secure {
+	secure := req.Context().Value(contextSecure)
+	if secure, ok := secure.(bool); ok && secure {
 		protocol = "https://"
 	}
 
@@ -81,34 +84,31 @@ var internalError = response{
 	},
 }
 
-func serveHome(db *DB, secure bool) http.Handler {
+func serveHome(db *DB) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		switch req.URL.Path {
 		case "/":
-			// FIXME: pass secure
 			errorEOL.ServeHTTP(w, req)
 		default:
-			serveRedirect(db, secure).ServeHTTP(w, req)
+			serveRedirect(db).ServeHTTP(w, req)
 		}
 	})
 }
 
-func serveRedirect(db *DB, secure bool) http.Handler {
+func serveRedirect(db *DB) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if isAlwaysPreview(req) && !isLocalReferer(req) {
-			servePreview(db, secure).ServeHTTP(w, req)
+			servePreview(db).ServeHTTP(w, req)
 			return
 		}
 		shortCode := req.URL.Path[1:]
 		s, err := db.Get(shortCode)
 		switch err {
 		case ErrNotFound:
-			// FIXME: pass secure
 			errorNotFound.ServeHTTP(w, req)
 		case nil:
 			http.Redirect(w, req, s.URL, http.StatusFound)
 		default:
-			// FIXME: pass secure
 			internalError.ServeHTTP(w, req)
 		}
 	})
@@ -123,22 +123,19 @@ func isLocalReferer(req *http.Request) bool {
 }
 
 // Preview shows short url details after adding
-func servePreview(db *DB, secure bool) http.Handler {
+func servePreview(db *DB) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		s, err := db.Get(req.URL.Path[1:])
 		switch err {
 		case ErrNotFound:
-			// FIXME: pass secure
 			errorNotFound.ServeHTTP(w, req)
 		case nil:
 			response{
 				Template:   "preview.html",
 				Context:    s,
-				Secure:     secure,
 				StatusCode: http.StatusOK,
 			}.ServeHTTP(w, req)
 		default:
-			// FIXME: pass secure
 			internalError.ServeHTTP(w, req)
 		}
 	})
@@ -158,5 +155,18 @@ func serveStatic(name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		style := assets.MustAsset(name)
 		http.ServeContent(w, req, path.Base(name), assets.LastModified, bytes.NewReader(style))
+	})
+}
+
+type contextKey int
+
+const (
+	contextSecure contextKey = iota
+)
+
+func setContextSecure(h http.Handler, secure bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		ctx := context.WithValue(req.Context(), contextSecure, secure)
+		h.ServeHTTP(w, req.WithContext(ctx))
 	})
 }

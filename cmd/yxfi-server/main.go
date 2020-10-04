@@ -21,7 +21,7 @@ var (
 )
 
 func main() {
-	flag.BoolVar(&secure, "secure", false, "set secure (HTTPS) flag in cookies")
+	flag.BoolVar(&secure, "secure", false, "use https URLs and set secure flag in cookies")
 	connstring := flag.String("connstring", "user=joneskoo dbname=joneskoo sslmode=disable", "PostgreSQL connection string")
 	flag.StringVar(&csrfStateFile, "csrf-file", csrfStateFile, "file to store CSRF secret in")
 	flag.StringVar(&listenAddr, "listen", listenAddr, "listen on [host]:port")
