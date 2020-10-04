@@ -25,7 +25,6 @@ func main() {
 	connstring := flag.String("connstring", "user=joneskoo dbname=joneskoo sslmode=disable", "PostgreSQL connection string")
 	flag.StringVar(&csrfStateFile, "csrf-file", csrfStateFile, "file to store CSRF secret in")
 	flag.StringVar(&listenAddr, "listen", listenAddr, "listen on [host]:port")
-	flag.StringVar(&shorturl.Domain, "domain", shorturl.Domain, "domain name")
 	flag.Parse()
 	log.Printf("Starting server, os.Args=%s", strings.Join(os.Args, " "))
 

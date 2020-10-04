@@ -9,18 +9,76 @@ import (
 	"strings"
 
 	"github.com/joneskoo/shorturl-go/assets"
-	"golang.org/x/net/context"
 )
 
 func Handler(db *DB, secure bool) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/", serveHome(db))
-	mux.Handle("/p/", http.StripPrefix("/p", servePreview(db)))
-	mux.Handle("/static/style.css", serveStatic("css/style.css"))
-	// apply middlewares
-	var h http.Handler = mux
-	h = setContextSecure(h, secure)
-	return h
+	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case "/":
+			// Index page: This service is end of life.
+			errorEOL.ServeHTTP(w, req)
+		default:
+			// If shorturl exists, redirect to it.
+			shorturlHandler(db).ServeHTTP(w, req)
+		}
+	})
+	mux.Handle("/p/", http.StripPrefix("/p", previewHandler(db)))
+	mux.Handle("/static/style.css", staticHandler("css/style.css"))
+	return mux
+}
+
+func shorturlHandler(db *DB) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if alwaysPreviewPref(req) && !isLocalReferer(req) {
+			previewHandler(db).ServeHTTP(w, req)
+			return
+		}
+		shortCode := req.URL.Path[1:]
+		s, err := db.Get(shortCode)
+		switch err {
+		case ErrNotFound:
+			errorNotFound.ServeHTTP(w, req)
+		case nil:
+			http.Redirect(w, req, s.URL, http.StatusFound)
+		default:
+			internalError.ServeHTTP(w, req)
+		}
+	})
+}
+
+// Preview shows short url details after adding
+func previewHandler(db *DB) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		s, err := db.Get(req.URL.Path[1:])
+		switch err {
+		case ErrNotFound:
+			errorNotFound.ServeHTTP(w, req)
+		case nil:
+			response{
+				Template:   "preview.html",
+				Context:    s,
+				StatusCode: http.StatusOK,
+			}.ServeHTTP(w, req)
+		default:
+			internalError.ServeHTTP(w, req)
+		}
+	})
+}
+
+func staticHandler(name string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		style := assets.MustAsset(name)
+		http.ServeContent(w, req, path.Base(name), assets.LastModified, bytes.NewReader(style))
+	})
+}
+
+func isLocalReferer(req *http.Request) bool {
+	url, err := url.Parse(req.Referer())
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(url.Host, req.Host)
 }
 
 type response struct {
@@ -41,20 +99,24 @@ func (r response) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 	rw.WriteHeader(r.StatusCode)
 	protocol := "http://"
-	secure := req.Context().Value(contextSecure)
-	if secure, ok := secure.(bool); ok && secure {
+	if isSecure(req) {
 		protocol = "https://"
 	}
 
 	err := template.Execute(rw, map[string]interface{}{
 		"Protocol": protocol,
-		"Domain":   Domain,
+		"Domain":   req.Host,
 		"Data":     r.Context,
 	})
 	if err != nil {
 		log.Printf("error executing template %s: %v", r.Template, err)
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// isSecure checks if request was done over HTTPS.
+func isSecure(req *http.Request) bool {
+	return req.Header.Get("X-Forwarded-Proto") == "https"
 }
 
 var errorEOL = response{
@@ -82,91 +144,4 @@ var internalError = response{
 		"ErrorTitle":   "Internal server error",
 		"ErrorMessage": "There was an error and we failed to handle it. Sorry.",
 	},
-}
-
-func serveHome(db *DB) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		switch req.URL.Path {
-		case "/":
-			errorEOL.ServeHTTP(w, req)
-		default:
-			serveRedirect(db).ServeHTTP(w, req)
-		}
-	})
-}
-
-func serveRedirect(db *DB) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if isAlwaysPreview(req) && !isLocalReferer(req) {
-			servePreview(db).ServeHTTP(w, req)
-			return
-		}
-		shortCode := req.URL.Path[1:]
-		s, err := db.Get(shortCode)
-		switch err {
-		case ErrNotFound:
-			errorNotFound.ServeHTTP(w, req)
-		case nil:
-			http.Redirect(w, req, s.URL, http.StatusFound)
-		default:
-			internalError.ServeHTTP(w, req)
-		}
-	})
-}
-
-func isLocalReferer(req *http.Request) bool {
-	url, err := url.Parse(req.Referer())
-	if err != nil {
-		return false
-	}
-	return strings.EqualFold(url.Host, Domain)
-}
-
-// Preview shows short url details after adding
-func servePreview(db *DB) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		s, err := db.Get(req.URL.Path[1:])
-		switch err {
-		case ErrNotFound:
-			errorNotFound.ServeHTTP(w, req)
-		case nil:
-			response{
-				Template:   "preview.html",
-				Context:    s,
-				StatusCode: http.StatusOK,
-			}.ServeHTTP(w, req)
-		default:
-			internalError.ServeHTTP(w, req)
-		}
-	})
-}
-
-func isAlwaysPreview(req *http.Request) bool {
-	cookies := req.Cookies()
-	for _, cookie := range cookies {
-		if cookie.Name == "preview" && cookie.Value == "true" {
-			return true
-		}
-	}
-	return false
-}
-
-func serveStatic(name string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		style := assets.MustAsset(name)
-		http.ServeContent(w, req, path.Base(name), assets.LastModified, bytes.NewReader(style))
-	})
-}
-
-type contextKey int
-
-const (
-	contextSecure contextKey = iota
-)
-
-func setContextSecure(h http.Handler, secure bool) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		ctx := context.WithValue(req.Context(), contextSecure, secure)
-		h.ServeHTTP(w, req.WithContext(ctx))
-	})
 }

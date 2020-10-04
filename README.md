@@ -13,3 +13,6 @@ CREATE TABLE shorturl (
     cookie text
 );
 ```
+
+Note: we assume server is used behind reverse proxy. Ensure that the frontend
+sets header X-Forwarded-Proto = https or http accordingly.

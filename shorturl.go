@@ -9,7 +9,6 @@ import (
 
 // Service configuration
 var (
-	Domain = "yx.fi"
 	idBase = 36
 )
 
