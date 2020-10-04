@@ -1,4 +1,4 @@
-package handlers
+package shorturl
 
 import (
 	"bytes"
@@ -8,16 +8,15 @@ import (
 	"strings"
 
 	"github.com/joneskoo/shorturl-go/assets"
-	"github.com/joneskoo/shorturl-go/database"
 )
 
 type handler struct {
-	db     *database.Database
+	db     *Database
 	secure bool
 	*http.ServeMux
 }
 
-func New(db *database.Database, secure bool) http.Handler {
+func NewHandlers(db *Database, secure bool) http.Handler {
 	mux := http.NewServeMux()
 	h := handler{db, secure, mux}
 	mux.HandleFunc("/", h.serveHome)
@@ -75,7 +74,7 @@ func (h handler) serveRedirect(w http.ResponseWriter, r *http.Request) {
 	case nil:
 		http.Redirect(w, r, s.URL, http.StatusFound)
 		return
-	case database.ErrNotFound:
+	case ErrNotFound:
 		h.serverError(w, errorNotFound)
 	default:
 		h.serverError(w, internalError)
@@ -87,7 +86,7 @@ func isLocalReferer(req *http.Request) bool {
 	if err != nil {
 		return false
 	}
-	return strings.EqualFold(url.Host, database.Domain)
+	return strings.EqualFold(url.Host, Domain)
 }
 
 // Preview shows short url details after adding
@@ -96,7 +95,7 @@ func (h handler) servePreview(w http.ResponseWriter, r *http.Request) {
 	switch err {
 	case nil:
 		h.executeTemplate(w, "preview.html", http.StatusOK, nil, s)
-	case database.ErrNotFound:
+	case ErrNotFound:
 		h.serverError(w, errorNotFound)
 	default:
 		h.serverError(w, internalError)
@@ -135,7 +134,7 @@ func (h handler) executeTemplate(w http.ResponseWriter, name string, status int,
 		Protocol string
 		Domain   string
 		Data     interface{}
-	}{protocol, database.Domain, data})
+	}{protocol, Domain, data})
 	if err != nil {
 		log.Printf("error executing template %s: %v", name, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
