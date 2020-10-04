@@ -19,40 +19,74 @@ func Handler(db *DB, secure bool) http.Handler {
 	return mux
 }
 
-type errorResponse struct {
-	ErrorTitle   string
-	ErrorMessage string
-	StatusCode   int
-	Template     string
+type response struct {
+	// Template is the file name of the template to render.
+	Template string
+	// Secure controls whether URLs are secure https or not.
+	Secure bool
+	// StatusCode is the response status code.
+	StatusCode int
+	// Context is the template context used to render the HTML template.
+	Context interface{}
 }
 
-var errorEOL = errorResponse{
-	StatusCode:   http.StatusGone,
-	ErrorTitle:   "Service is end-of-life",
-	ErrorMessage: "This short url service is end of life. Existing redirects continue to work for now.",
+func (r response) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	template, ok := templates[r.Template]
+	if !ok {
+		log.Printf("template %s not found", r.Template)
+		http.Error(rw, "", http.StatusInternalServerError)
+		return
+	}
+	rw.WriteHeader(r.StatusCode)
+	protocol := "http://"
+	if r.Secure {
+		protocol = "https://"
+	}
+
+	err := template.Execute(rw, map[string]interface{}{
+		"Protocol": protocol,
+		"Domain":   Domain,
+		"Data":     r.Context,
+	})
+	if err != nil {
+		log.Printf("error executing template %s: %v", r.Template, err)
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+	}
 }
 
-var errorNotFound = errorResponse{
-	StatusCode:   http.StatusNotFound,
-	ErrorTitle:   "Short URL not found",
-	ErrorMessage: "Short URL by this id was not found.",
+var errorEOL = response{
+	Template:   "error.html",
+	StatusCode: http.StatusGone,
+	Context: map[string]string{
+		"ErrorTitle":   "Service is end-of-life",
+		"ErrorMessage": "This short url service is end of life. Existing redirects continue to work for now.",
+	},
 }
 
-var internalError = errorResponse{
-	StatusCode:   500,
-	ErrorTitle:   "Internal server error",
-	ErrorMessage: "There was an error and we failed to handle it. Sorry.",
+var errorNotFound = response{
+	Template:   "error.html",
+	StatusCode: http.StatusNotFound,
+	Context: map[string]string{
+		"ErrorTitle":   "Short URL not found",
+		"ErrorMessage": "Short URL by this id was not found.",
+	},
 }
 
-func serverError(e errorResponse, secure bool) http.Handler {
-	return executeTemplate("error.html", e.StatusCode, e, secure)
+var internalError = response{
+	Template:   "error.html",
+	StatusCode: 500,
+	Context: map[string]string{
+		"ErrorTitle":   "Internal server error",
+		"ErrorMessage": "There was an error and we failed to handle it. Sorry.",
+	},
 }
 
 func serveHome(db *DB, secure bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		switch req.URL.Path {
 		case "/":
-			serverError(errorEOL, secure).ServeHTTP(w, req)
+			// FIXME: pass secure
+			errorEOL.ServeHTTP(w, req)
 		default:
 			serveRedirect(db, secure).ServeHTTP(w, req)
 		}
@@ -69,11 +103,13 @@ func serveRedirect(db *DB, secure bool) http.Handler {
 		s, err := db.Get(shortCode)
 		switch err {
 		case ErrNotFound:
-			serverError(errorNotFound, secure).ServeHTTP(w, req)
+			// FIXME: pass secure
+			errorNotFound.ServeHTTP(w, req)
 		case nil:
 			http.Redirect(w, req, s.URL, http.StatusFound)
 		default:
-			serverError(internalError, secure).ServeHTTP(w, req)
+			// FIXME: pass secure
+			internalError.ServeHTTP(w, req)
 		}
 	})
 }
@@ -92,11 +128,18 @@ func servePreview(db *DB, secure bool) http.Handler {
 		s, err := db.Get(req.URL.Path[1:])
 		switch err {
 		case ErrNotFound:
-			serverError(errorNotFound, secure).ServeHTTP(w, req)
+			// FIXME: pass secure
+			errorNotFound.ServeHTTP(w, req)
 		case nil:
-			executeTemplate("preview.html", http.StatusOK, s, secure).ServeHTTP(w, req)
+			response{
+				Template:   "preview.html",
+				Context:    s,
+				Secure:     secure,
+				StatusCode: http.StatusOK,
+			}.ServeHTTP(w, req)
 		default:
-			serverError(internalError, secure).ServeHTTP(w, req)
+			// FIXME: pass secure
+			internalError.ServeHTTP(w, req)
 		}
 	})
 }
@@ -115,31 +158,5 @@ func serveStatic(name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		style := assets.MustAsset(name)
 		http.ServeContent(w, req, path.Base(name), assets.LastModified, bytes.NewReader(style))
-	})
-}
-
-func executeTemplate(name string, status int, data interface{}, secure bool) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		template, ok := templates[name]
-		if !ok {
-			log.Printf("template %s not found", name)
-			http.Error(w, "", http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(status)
-		protocol := "http://"
-		if secure {
-			protocol = "https://"
-		}
-
-		err := template.Execute(w, struct {
-			Protocol string
-			Domain   string
-			Data     interface{}
-		}{protocol, Domain, data})
-		if err != nil {
-			log.Printf("error executing template %s: %v", name, err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
 	})
 }
