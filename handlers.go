@@ -47,7 +47,9 @@ func shorturlHandler(db *DB) http.Handler {
 	})
 }
 
-// Preview shows short url details after adding
+// previewHandler shows short url details page.
+// The page is shown after adding a short URL or when preview URL is explicitly
+// requested, or if always preview preference is set.
 func previewHandler(db *DB) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		s, err := db.Get(req.URL.Path[1:])
@@ -127,29 +129,29 @@ func host(req *http.Request) string {
 	return req.Host
 }
 
-var errorEOL = response{
-	Template:   "error.html",
-	StatusCode: http.StatusGone,
-	Context: map[string]string{
-		"ErrorTitle":   "Service is end-of-life",
-		"ErrorMessage": "This short url service is end of life. Existing redirects continue to work for now.",
-	},
-}
-
-var errorNotFound = response{
-	Template:   "error.html",
-	StatusCode: http.StatusNotFound,
-	Context: map[string]string{
-		"ErrorTitle":   "Short URL not found",
-		"ErrorMessage": "Short URL by this id was not found.",
-	},
-}
-
-var internalError = response{
-	Template:   "error.html",
-	StatusCode: 500,
-	Context: map[string]string{
-		"ErrorTitle":   "Internal server error",
-		"ErrorMessage": "There was an error and we failed to handle it. Sorry.",
-	},
-}
+var (
+	errorEOL = response{
+		Template:   "error.html",
+		StatusCode: http.StatusGone,
+		Context: map[string]string{
+			"ErrorTitle":   "Service is end-of-life",
+			"ErrorMessage": "This short url service is end of life. Existing redirects continue to work for now.",
+		},
+	}
+	errorNotFound = response{
+		Template:   "error.html",
+		StatusCode: http.StatusNotFound,
+		Context: map[string]string{
+			"ErrorTitle":   "Short URL not found",
+			"ErrorMessage": "Short URL by this id was not found.",
+		},
+	}
+	internalError = response{
+		Template:   "error.html",
+		StatusCode: 500,
+		Context: map[string]string{
+			"ErrorTitle":   "Internal server error",
+			"ErrorMessage": "There was an error and we failed to handle it. Sorry.",
+		},
+	}
+)

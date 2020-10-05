@@ -29,37 +29,14 @@ func Open(dataSourceName string) (*DB, error) {
 // Get retrieves short url from database by short id
 func (db *DB) Get(shortCode string) (*Shorturl, error) {
 	var err error
-	s := new(Shorturl)
-	s.ID, err = strconv.ParseInt(shortCode, idBase, 32)
+	id, err := strconv.ParseInt(shortCode, idBase, 32)
 	if err != nil {
 		return nil, ErrNotFound
 	}
+	s := &Shorturl{ID: id}
 	err = db.QueryRow(sqlByID, s.ID).Scan(&s.URL, &s.Host, &s.Added)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
 	}
 	return s, err
-}
-
-// List retrieves a list of short URLs from database.
-func (db *DB) List() (<-chan Shorturl, error) {
-	// Query shorturl from database
-	rows, err := db.Query("SELECT id, url, host, ts FROM shorturl")
-	if err != nil {
-		return nil, err
-	}
-	shorturls := make(chan Shorturl)
-	go func(ch chan<- Shorturl) {
-		defer close(ch)
-		defer rows.Close()
-		for rows.Next() {
-			s := Shorturl{}
-			err := rows.Scan(&s.ID, &s.URL, &s.Host, &s.Added)
-			if err != nil {
-				return
-			}
-			ch <- s
-		}
-	}(shorturls)
-	return shorturls, nil
 }
