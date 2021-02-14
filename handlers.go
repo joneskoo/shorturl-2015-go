@@ -42,6 +42,7 @@ func shorturlHandler(db *DB) http.Handler {
 		case nil:
 			http.Redirect(w, req, s.URL, http.StatusFound)
 		default:
+			log.Printf("ERROR HTTP 500: %v", err)
 			internalError.ServeHTTP(w, req)
 		}
 	})
